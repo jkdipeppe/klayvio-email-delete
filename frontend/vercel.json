@@ -3,15 +3,20 @@
   "devCommand": "npm run dev",
   "installCommand": "npm install",
   "framework": "nextjs",
+  "crons": [
+    {
+      "path": "/api/cron/schedule-run",
+      "schedule": "0 * * * *"
+    }
+  ],
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "/api/:path*"
+      "destination": "${process.env.BACKEND_URL || 'http://localhost:3000'}/api/:path*"
     },
     {
       "source": "/auth/:path*",
-      "destination": "/auth/:path*"
+      "destination": "${process.env.BACKEND_URL || 'http://localhost:3000'}/auth/:path*"
     }
   ]
 }
-
