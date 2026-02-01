@@ -76,9 +76,10 @@ router.get('/auth/callback/klaviyo', async (req, res) => {
     
     if (account) {
       // Update existing account with RLS context
-      account = await withAccountContext(prisma, account.id, async () => {
+      const accountId = account.id; // Capture ID for TypeScript
+      account = await withAccountContext(prisma, accountId, async () => {
         return await prisma.account.update({
-          where: { id: account.id },
+          where: { id: accountId },
           data: {
             accessToken: encrypt(tokens.access_token),
             refreshToken: encrypt(tokens.refresh_token),
