@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Account {
+  id              String   @id @default(uuid())
+  klaviyoAccountId String  @unique
+  accessToken     String   // Encrypted
+  refreshToken    String   // Encrypted
+  tokenExpiresAt  DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  rules           CleanupRule[]
+  deletionLogs    DeletionLog[]
+  scheduledCleanup ScheduledCleanup?
+  cleanupRuns     CleanupRun[]
+}
+
+model CleanupRule {
+  id          String   @id @default(uuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  type        RuleType
+  pattern     String   // e.g., "noreply" or "@tempmail.com"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  
+  @@unique([accountId, type, pattern])
+}
+
+enum RuleType {
+  PREFIX
+  SUFFIX
+  CONTAINS
+  DOMAIN
+}
+
+model DeletionLog {
+  id          String   @id @default(uuid())
+  accountId   String
+  account     Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  profileEmail String
+  profileId   String?
+  ruleMatched String
+  deletedAt   DateTime @default(now())
+}
+
+model ScheduledCleanup {
+  id            String   @id @default(uuid())
+  accountId     String   @unique
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  isEnabled     Boolean  @default(false)
+  frequencyDays Int      @default(7) // 1 for daily, 7 for weekly
+  lastRunAt     DateTime?
+  nextRunAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([nextRunAt, isEnabled])
+}
+
+model CleanupRun {
+  id            String   @id @default(uuid())
+  accountId     String
+  account       Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  startedAt     DateTime @default(now())
+  completedAt   DateTime?
+  status        RunStatus
+  profilesFound Int      @default(0)
+  profilesDeleted Int    @default(0)
+  profilesFailed Int     @default(0)
+  errorMessage  String?
+  
+  @@index([accountId, startedAt])
+}
+
+enum RunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
