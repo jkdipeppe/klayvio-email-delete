@@ -6,6 +6,15 @@ import routes from './routes';
 
 dotenv.config();
 
+// Debug: Check DATABASE_URL (don't log full value - contains password)
+console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
+console.log('DATABASE_URL format check:', process.env.DATABASE_URL?.startsWith('postgresql://') ? '✅ Valid format' : '❌ Invalid format');
+if (process.env.DATABASE_URL) {
+  const url = new URL(process.env.DATABASE_URL);
+  console.log('Database host:', url.hostname);
+  console.log('Database port:', url.port);
+}
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

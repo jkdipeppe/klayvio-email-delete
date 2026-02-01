@@ -32,11 +32,23 @@ EXCEPTION
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Drop existing policies if they exist (to avoid conflicts)
+DROP POLICY IF EXISTS "Users can view their own account" ON "Account";
+DROP POLICY IF EXISTS "Users can update their own account" ON "Account";
+DROP POLICY IF EXISTS "Users can insert their own account" ON "Account";
+
 -- Policy for Account table: Users can only see/update their own account
+-- Allow lookups without context for OAuth flow (when looking up by klaviyoAccountId)
 CREATE POLICY "Users can view their own account"
   ON "Account"
   FOR SELECT
-  USING (check_account_access(id::text));
+  USING (
+    -- Allow if RLS context matches the account id
+    check_account_access(id::text)
+    OR
+    -- Allow if no context is set (needed for OAuth lookups by klaviyoAccountId)
+    current_setting('app.current_account_id', true) IS NULL
+  );
 
 CREATE POLICY "Users can update their own account"
   ON "Account"
@@ -53,6 +65,12 @@ CREATE POLICY "Users can insert their own account"
     check_account_access(id::text)
     OR current_setting('app.current_account_id', true) IS NULL
   );
+
+-- Drop existing CleanupRule policies
+DROP POLICY IF EXISTS "Users can view their own rules" ON "CleanupRule";
+DROP POLICY IF EXISTS "Users can create rules for their own account" ON "CleanupRule";
+DROP POLICY IF EXISTS "Users can update their own rules" ON "CleanupRule";
+DROP POLICY IF EXISTS "Users can delete their own rules" ON "CleanupRule";
 
 -- Policy for CleanupRule table: Users can only access rules for their own account
 CREATE POLICY "Users can view their own rules"
@@ -99,6 +117,10 @@ CREATE POLICY "Users can delete their own rules"
     )
   );
 
+-- Drop existing DeletionLog policies
+DROP POLICY IF EXISTS "Users can view their own deletion logs" ON "DeletionLog";
+DROP POLICY IF EXISTS "Users can create logs for their own account" ON "DeletionLog";
+
 -- Policy for DeletionLog table: Users can only access logs for their own account
 CREATE POLICY "Users can view their own deletion logs"
   ON "DeletionLog"
@@ -125,6 +147,12 @@ CREATE POLICY "Users can create logs for their own account"
 -- Enable RLS on ScheduledCleanup table
 ALTER TABLE "ScheduledCleanup" ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing ScheduledCleanup policies
+DROP POLICY IF EXISTS "Users can view their own schedule" ON "ScheduledCleanup";
+DROP POLICY IF EXISTS "Users can create their own schedule" ON "ScheduledCleanup";
+DROP POLICY IF EXISTS "Users can update their own schedule" ON "ScheduledCleanup";
+DROP POLICY IF EXISTS "Users can delete their own schedule" ON "ScheduledCleanup";
+
 -- Policy for ScheduledCleanup table
 CREATE POLICY "Users can view their own schedule"
   ON "ScheduledCleanup"
@@ -149,37 +177,25 @@ CREATE POLICY "Users can delete their own schedule"
 -- Enable RLS on CleanupRun table
 ALTER TABLE "CleanupRun" ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing CleanupRun policies
+DROP POLICY IF EXISTS "Users can view their own cleanup runs" ON "CleanupRun";
+DROP POLICY IF EXISTS "Users can create cleanup runs for their own account" ON "CleanupRun";
+DROP POLICY IF EXISTS "Users can update cleanup runs for their own account" ON "CleanupRun";
+
 -- Policy for CleanupRun table
+-- CleanupRun has a direct accountId field, so we can check it directly
 CREATE POLICY "Users can view their own cleanup runs"
   ON "CleanupRun"
   FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM "Account"
-      WHERE "Account".id = "CleanupRun"."accountId"
-      AND check_account_access("Account".id::text)
-    )
-  );
+  USING (check_account_access("accountId"::text));
 
 CREATE POLICY "Users can create cleanup runs for their own account"
   ON "CleanupRun"
   FOR INSERT
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM "Account"
-      WHERE "Account".id = "CleanupRun"."accountId"
-      AND check_account_access("Account".id::text)
-    )
-  );
+  WITH CHECK (check_account_access("accountId"::text));
 
 CREATE POLICY "Users can update cleanup runs for their own account"
   ON "CleanupRun"
   FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM "Account"
-      WHERE "Account".id = "CleanupRun"."accountId"
-      AND check_account_access("Account".id::text)
-    )
-  );
+  USING (check_account_access("accountId"::text));
 
