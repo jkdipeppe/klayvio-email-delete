@@ -73,8 +73,11 @@ Railway is great for Node.js apps with PostgreSQL support.
 
 1. Click "Deploy from GitHub repo"
 2. Select your repository
-3. Select the `backend` folder (or configure root directory)
-4. Railway will auto-detect Node.js
+3. Railway will create a service - **don't deploy yet!**
+4. **IMPORTANT**: Go to **Settings** → **Source**
+5. Set **Root Directory** to: `backend`
+6. Save changes
+7. Railway will auto-detect Node.js and deploy
 
 ### 2.3 Configure Environment Variables
 
@@ -98,10 +101,17 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 ### 2.4 Configure Build Settings
 
-In Railway, set:
-- **Root Directory**: `backend`
-- **Build Command**: `npm install && npm run build`
-- **Start Command**: `npm start`
+**Important**: Railway needs to know the backend is in a subdirectory.
+
+**Option A: Railway Dashboard (Recommended)**
+1. In Railway, go to your backend service
+2. Click **Settings** tab
+3. Scroll to **Source** section
+4. Set **Root Directory**: `backend`
+5. Railway will auto-detect Node.js and build commands
+
+**Option B: Use railway.toml**
+The `railway.toml` file in the root configures this automatically.
 
 ### 2.5 Run Database Migrations
 
@@ -139,11 +149,13 @@ Vercel is perfect for Next.js apps.
 ### 3.2 Deploy Frontend
 
 1. Import your GitHub repository
-2. Configure project:
-   - **Framework Preset**: Next.js
-   - **Root Directory**: `frontend`
-   - **Build Command**: `npm run build` (default)
-   - **Output Directory**: `.next` (default)
+2. **IMPORTANT**: Before deploying, go to **Settings** → **General**
+3. Set **Root Directory** to: `frontend`
+4. Save changes
+5. Vercel will auto-detect Next.js and configure:
+   - **Framework Preset**: Next.js (auto-detected)
+   - **Build Command**: `npm run build` (auto-detected)
+   - **Output Directory**: `.next` (auto-detected)
 
 ### 3.3 Configure Environment Variables
 
