@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { refreshAccessToken } from '../auth/klaviyo-oauth';
 import { encrypt, decrypt } from './encryption';
 import { withAccountContext } from './rls';
+import { AuthenticationRequiredError } from './auth-errors';
 
 /**
  * Get a valid access token for an account, refreshing if necessary
@@ -52,12 +53,29 @@ export async function getValidAccessToken(
       return newTokens.access_token;
     } catch (error: any) {
       console.error(`Failed to refresh token for account ${accountId}:`, error);
+      // If decryption failed, throw AuthenticationRequiredError
+      if (error.message && error.message.includes('Decryption failed')) {
+        throw new AuthenticationRequiredError('Your Klaviyo connection has expired. Please reconnect your account.');
+      }
+      // If refresh token is invalid, also require re-authentication
+      if (error.message && (error.message.includes('invalid') || error.message.includes('expired'))) {
+        throw new AuthenticationRequiredError('Your Klaviyo connection has expired. Please reconnect your account.');
+      }
       throw new Error(`Token refresh failed: ${error.message}. User may need to re-authenticate.`);
     }
   }
 
   // Token is still valid, return it
-  return decrypt(account.accessToken);
+  try {
+    return decrypt(account.accessToken);
+  } catch (error: any) {
+    console.error(`Failed to decrypt access token for account ${accountId}:`, error);
+    // If decryption failed, throw AuthenticationRequiredError
+    if (error.message && error.message.includes('Decryption failed')) {
+      throw new AuthenticationRequiredError('Your Klaviyo connection has expired. Please reconnect your account.');
+    }
+    throw error;
+  }
 }
 
 /**

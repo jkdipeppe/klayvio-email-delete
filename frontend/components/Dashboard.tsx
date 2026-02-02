@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useRouter } from 'next/router';
 import axios from 'axios';
+import { isReauthRequired, getReauthMessage } from '../utils/auth-errors';
 
 type RuleType = 'PREFIX' | 'SUFFIX' | 'DOMAIN' | 'CONTAINS';
 
@@ -31,19 +32,41 @@ export default function Dashboard({ accountId }: { accountId: string }) {
   const [newRule, setNewRule] = useState({ type: 'PREFIX' as RuleType, pattern: '' });
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [selectedProfiles, setSelectedProfiles] = useState<Set<string>>(new Set());
+  const [showReauthModal, setShowReauthModal] = useState(false);
+  const [reauthMessage, setReauthMessage] = useState('');
+
+  // Helper function to handle re-auth errors
+  const handleReauthError = (error: any) => {
+    if (isReauthRequired(error)) {
+      setReauthMessage(getReauthMessage(error));
+      setShowReauthModal(true);
+      return true;
+    }
+    return false;
+  };
 
   // Fetch subscription status
-  const { data: subscription, isLoading: subscriptionLoading } = useQuery(
+  const { data: subscription, isLoading: subscriptionLoading, error: subscriptionError } = useQuery(
     ['subscription', accountId],
     () => axios.get(`/api/subscription/${accountId}`).then(res => res.data),
-    { enabled: !!accountId }
+    { 
+      enabled: !!accountId,
+      onError: (error: any) => {
+        handleReauthError(error);
+      }
+    }
   );
 
   // Fetch rules
-  const { data: rulesData, isLoading: rulesLoading } = useQuery(
+  const { data: rulesData, isLoading: rulesLoading, error: rulesError } = useQuery(
     ['rules', accountId],
     () => axios.get(`/api/rules/${accountId}`).then(res => res.data),
-    { enabled: !!accountId }
+    { 
+      enabled: !!accountId,
+      onError: (error: any) => {
+        handleReauthError(error);
+      }
+    }
   );
 
   const rules = rulesData?.rules || rulesData || []; // Handle both old and new response format
@@ -58,6 +81,11 @@ export default function Dashboard({ accountId }: { accountId: string }) {
         queryClient.invalidateQueries(['rules', accountId]);
         setNewRule({ type: 'PREFIX', pattern: '' });
       },
+      onError: (error: any) => {
+        if (!handleReauthError(error)) {
+          alert(`Failed to create rule: ${error.response?.data?.error || error.message}`);
+        }
+      },
     }
   );
 
@@ -66,6 +94,11 @@ export default function Dashboard({ accountId }: { accountId: string }) {
     (ruleId: string) => axios.delete(`/api/rules/${ruleId}`),
     {
       onSuccess: () => queryClient.invalidateQueries(['rules', accountId]),
+      onError: (error: any) => {
+        if (!handleReauthError(error)) {
+          alert(`Failed to delete rule: ${error.response?.data?.error || error.message}`);
+        }
+      },
     }
   );
 
@@ -76,6 +109,11 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       onSuccess: (res) => {
         setScanResults(res.data.matches);
         setSelectedProfiles(new Set(res.data.matches.map((m: ScanResult) => m.profileId)));
+      },
+      onError: (error: any) => {
+        if (!handleReauthError(error)) {
+          alert(`Failed to preview scan: ${error.response?.data?.error || error.message}`);
+        }
       },
     }
   );
@@ -92,14 +130,24 @@ export default function Dashboard({ accountId }: { accountId: string }) {
         setSelectedProfiles(new Set());
         queryClient.invalidateQueries(['rules', accountId]);
       },
+      onError: (error: any) => {
+        if (!handleReauthError(error)) {
+          alert(`Failed to delete profiles: ${error.response?.data?.error || error.message}`);
+        }
+      },
     }
   );
 
   // Fetch schedule
-  const { data: schedule, isLoading: scheduleLoading } = useQuery<Schedule>(
+  const { data: schedule, isLoading: scheduleLoading, error: scheduleError } = useQuery<Schedule>(
     ['schedule', accountId],
     () => axios.get(`/api/schedule/${accountId}`).then(res => res.data),
-    { enabled: !!accountId }
+    { 
+      enabled: !!accountId,
+      onError: (error: any) => {
+        handleReauthError(error);
+      }
+    }
   );
 
   // Update schedule mutation
@@ -112,9 +160,11 @@ export default function Dashboard({ accountId }: { accountId: string }) {
         queryClient.invalidateQueries(['schedule-history', accountId]);
       },
       onError: (error: any) => {
-        const errorMessage = error.response?.data?.error || error.message || 'Failed to update schedule';
-        alert(`Error: ${errorMessage}`);
-        console.error('Schedule update error:', error);
+        if (!handleReauthError(error)) {
+          const errorMessage = error.response?.data?.error || error.message || 'Failed to update schedule';
+          alert(`Error: ${errorMessage}`);
+          console.error('Schedule update error:', error);
+        }
       },
     }
   );
@@ -129,7 +179,9 @@ export default function Dashboard({ accountId }: { accountId: string }) {
         queryClient.invalidateQueries(['schedule-history', accountId]);
       },
       onError: (error: any) => {
-        alert(`Cleanup failed: ${error.response?.data?.error || error.message}`);
+        if (!handleReauthError(error)) {
+          alert(`Cleanup failed: ${error.response?.data?.error || error.message}`);
+        }
       },
     }
   );
@@ -818,6 +870,45 @@ export default function Dashboard({ accountId }: { accountId: string }) {
           )}
         </section>
       </div>
+      
+      {/* Re-authentication Modal */}
+      {showReauthModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-center w-12 h-12 mx-auto bg-yellow-100 rounded-full mb-4">
+              <svg className="w-6 h-6 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
+              Re-authentication Required
+            </h3>
+            <p className="text-gray-600 text-center mb-6">
+              {reauthMessage || 'Your Klaviyo connection has expired. Please reconnect your account to continue.'}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => {
+                  setShowReauthModal(false);
+                  window.location.href = '/auth/klaviyo';
+                }}
+                className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              >
+                Reconnect Klaviyo Account
+              </button>
+              <button
+                onClick={() => {
+                  setShowReauthModal(false);
+                  router.push('/');
+                }}
+                className="flex-1 bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+              >
+                Go to Homepage
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-12">

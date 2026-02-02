@@ -14,9 +14,25 @@ import { encrypt, decrypt } from '../utils/encryption';
 import { withAccountContext } from '../utils/rls';
 import { getValidAccessToken } from '../utils/token-manager';
 import { canCreateRule, canEnableScheduling, getSubscriptionInfo } from '../utils/subscription-limits';
+import { AuthenticationRequiredError, isAuthenticationRequiredError } from '../utils/auth-errors';
 
 const router = Router();
 const prisma = new PrismaClient();
+
+/**
+ * Helper function to handle authentication errors gracefully
+ * Returns 401 with a specific error code that frontend can detect
+ */
+function handleAuthError(error: any, res: any) {
+    if (isAuthenticationRequiredError(error)) {
+        return res.status(401).json({
+            error: error.message || 'Authentication required',
+            code: 'AUTH_REQUIRED',
+            requiresReauth: true
+        });
+    }
+    return null; // Let caller handle other errors
+}
 
 // Debug endpoint to check environment variables (remove in production)
 router.get('/debug-env', (req, res) => {
@@ -247,6 +263,8 @@ router.get('/api/scan/:accountId/preview', async (req, res) => {
         const matches = await scanner.scanProfiles(account.id);
         res.json({ matches, count: matches.length });
     } catch (error: any) {
+        const authError = handleAuthError(error, res);
+        if (authError) return authError;
         res.status(500).json({ error: error.message });
     }
 });
@@ -277,6 +295,8 @@ router.post('/api/scan/:accountId/execute', async (req, res) => {
         const result = await scanner.deleteMatchingProfiles(account.id, toDelete);
         res.json(result);
     } catch (error: any) {
+        const authError = handleAuthError(error, res);
+        if (authError) return authError;
         res.status(500).json({ error: error.message });
     }
 });
