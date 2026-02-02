@@ -77,15 +77,23 @@ export default function Home() {
               Clean up your Klaviyo account by automatically identifying and removing spam profiles 
               based on customizable email patterns, prefixes, and suffixes.
             </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               onClick={handleConnect}
-              className="inline-flex items-center px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-lg shadow-lg hover:bg-indigo-700 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-lg shadow-lg hover:bg-indigo-700 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
               </svg>
               Connect with Klaviyo
             </button>
+            <a
+              href="/pricing"
+              className="inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-600 text-lg font-semibold rounded-lg shadow-lg hover:bg-gray-50 transition-all border-2 border-indigo-600"
+            >
+              View Pricing
+            </a>
+          </div>
           </div>
 
           {/* Features Grid */}
@@ -163,15 +171,23 @@ export default function Home() {
             <p className="text-xl mb-8 text-indigo-100">
               Start removing spam profiles automatically in minutes. No coding required.
             </p>
-            <button
-              onClick={handleConnect}
-              className="inline-flex items-center px-8 py-4 bg-white text-indigo-600 text-lg font-semibold rounded-lg shadow-lg hover:bg-gray-100 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600"
-            >
-              Get Started Free
-              <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <button
+                onClick={handleConnect}
+                className="inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-600 text-lg font-semibold rounded-lg shadow-lg hover:bg-gray-100 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600"
+              >
+                Get Started Free
+                <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </button>
+              <a
+                href="/pricing"
+                className="inline-flex items-center justify-center px-8 py-4 bg-indigo-700 text-white text-lg font-semibold rounded-lg shadow-lg hover:bg-indigo-800 transition-all"
+              >
+                View Plans
+              </a>
+            </div>
           </div>
         </div>
 

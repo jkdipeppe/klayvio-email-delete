@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import routes from './routes';
+import subscriptionRoutes from './routes/subscription';
 
 dotenv.config();
 
@@ -24,11 +25,15 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:3001',
   credentials: true,
 }));
+// Stripe webhook needs raw body, so we handle it before json parser
+app.use('/api/subscription/webhook', express.raw({ type: 'application/json' }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use('/', routes);
+app.use('/', subscriptionRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

@@ -13,6 +13,7 @@ import { ScheduledCleanupService } from '../services/scheduled-cleanup';
 import { encrypt, decrypt } from '../utils/encryption';
 import { withAccountContext } from '../utils/rls';
 import { getValidAccessToken } from '../utils/token-manager';
+import { canCreateRule, canEnableScheduling, getSubscriptionInfo } from '../utils/subscription-limits';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -169,6 +170,17 @@ router.post('/api/rules/:accountId', async (req, res) => {
 
         if (!account) {
             return res.status(404).json({ error: 'Account not found' });
+        }
+
+        // Check subscription limits
+        const limitCheck = await canCreateRule(prisma, accountId);
+        if (!limitCheck.allowed) {
+            return res.status(403).json({
+                error: `Rule limit reached. You have ${limitCheck.currentCount}/${limitCheck.maxRules} rules. ${limitCheck.tier === null ? 'Please subscribe to create more rules.' : 'Please upgrade to Pro plan for more rules.'}`,
+                currentCount: limitCheck.currentCount,
+                maxRules: limitCheck.maxRules,
+                tier: limitCheck.tier,
+            });
         }
 
         // Use RLS context
@@ -355,6 +367,17 @@ router.post('/api/schedule/:accountId', async (req, res) => {
 
         if (!account) {
             return res.status(404).json({ error: 'Account not found' });
+        }
+
+        // Check if scheduling is allowed (Pro plan only)
+        if (isEnabled) {
+            const scheduleCheck = await canEnableScheduling(prisma, accountId);
+            if (!scheduleCheck.allowed) {
+                return res.status(403).json({
+                    error: 'Automatic scheduling is only available on the Pro plan ($7/month). Please upgrade to enable automatic cleanup.',
+                    tier: scheduleCheck.tier,
+                });
+            }
         }
 
         const cleanupService = new ScheduledCleanupService(prisma);

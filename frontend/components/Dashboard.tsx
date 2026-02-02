@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
+import { useRouter } from 'next/router';
 import axios from 'axios';
 
 type RuleType = 'PREFIX' | 'SUFFIX' | 'DOMAIN' | 'CONTAINS';
@@ -25,17 +26,28 @@ interface Schedule {
 }
 
 export default function Dashboard({ accountId }: { accountId: string }) {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [newRule, setNewRule] = useState({ type: 'PREFIX' as RuleType, pattern: '' });
   const [scanResults, setScanResults] = useState<ScanResult[]>([]);
   const [selectedProfiles, setSelectedProfiles] = useState<Set<string>>(new Set());
 
+  // Fetch subscription status
+  const { data: subscription, isLoading: subscriptionLoading } = useQuery(
+    ['subscription', accountId],
+    () => axios.get(`/api/subscription/${accountId}`).then(res => res.data),
+    { enabled: !!accountId }
+  );
+
   // Fetch rules
-  const { data: rules, isLoading: rulesLoading } = useQuery<Rule[]>(
+  const { data: rulesData, isLoading: rulesLoading } = useQuery(
     ['rules', accountId],
     () => axios.get(`/api/rules/${accountId}`).then(res => res.data),
     { enabled: !!accountId }
   );
+
+  const rules = rulesData?.rules || rulesData || []; // Handle both old and new response format
+  const ruleLimits = rulesData?.limits || { current: rules.length, max: 5, canCreateMore: true };
 
   // Create rule mutation
   const createRule = useMutation(
@@ -165,6 +177,60 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Subscription Status Banner */}
+        {subscription && (
+          <div className={`mb-6 rounded-xl p-4 border-2 ${
+            subscription.tier === 'PRO' 
+              ? 'bg-gradient-to-r from-indigo-50 to-purple-50 border-indigo-300' 
+              : subscription.tier === 'BASIC'
+              ? 'bg-blue-50 border-blue-300'
+              : 'bg-yellow-50 border-yellow-300'
+          }`}>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                  subscription.tier === 'PRO' ? 'bg-indigo-600' : subscription.tier === 'BASIC' ? 'bg-blue-600' : 'bg-yellow-600'
+                }`}>
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-900">
+                    {subscription.tier === 'PRO' ? 'Pro Plan' : subscription.tier === 'BASIC' ? 'Basic Plan' : 'Free Plan'}
+                  </p>
+                  <p className="text-sm text-gray-600">
+                    {subscription.tier === 'PRO' ? '$7/month' : subscription.tier === 'BASIC' ? '$5/month' : 'No subscription'}
+                    {subscription.subscription?.cancelAtPeriodEnd && subscription.subscription?.currentPeriodEnd && (
+                      <span className="block text-xs text-yellow-700 mt-1">
+                        Canceling on {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {subscription.tier && (
+                  <button
+                    onClick={() => router.push(`/subscription?accountId=${accountId}`)}
+                    className="px-4 py-2 bg-white text-indigo-600 border border-indigo-300 rounded-lg font-semibold hover:bg-indigo-50 transition-colors text-sm"
+                  >
+                    Manage
+                  </button>
+                )}
+                {(!subscription.tier || subscription.tier !== 'PRO') && (
+                  <button
+                    onClick={() => router.push(`/pricing?accountId=${accountId}`)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors text-sm"
+                  >
+                    {subscription.tier ? 'Upgrade' : 'Subscribe'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border-l-4 border-indigo-500">
@@ -173,6 +239,9 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                 <p className="text-sm font-medium text-gray-600">Active Rules</p>
                 <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
                   {rulesLoading ? '...' : rules?.length || 0}
+                  {ruleLimits.max && (
+                    <span className="text-lg text-gray-500 font-normal"> / {ruleLimits.max}</span>
+                  )}
                 </p>
               </div>
               <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
@@ -270,9 +339,19 @@ export default function Dashboard({ accountId }: { accountId: string }) {
               placeholder="e.g., noreply or @tempmail.com"
               className="border border-gray-300 rounded-lg px-4 py-2.5 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
+            {ruleLimits.canCreateMore === false && (
+              <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  <strong>Rule limit reached!</strong> You have {ruleLimits.current}/{ruleLimits.max} rules. 
+                  {subscription?.tier !== 'PRO' && (
+                    <span> <a href={`/pricing?accountId=${accountId}`} className="underline font-semibold">Upgrade to Pro</a> for up to 100 rules.</span>
+                  )}
+                </p>
+              </div>
+            )}
             <button
               onClick={() => createRule.mutate(newRule)}
-              disabled={!newRule.pattern || createRule.isLoading}
+              disabled={!newRule.pattern || createRule.isLoading || !ruleLimits.canCreateMore}
               className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
               {createRule.isLoading ? (
@@ -333,7 +412,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
             </div>
           ) : (
             <div className="space-y-3">
-              {rules?.map((rule) => (
+              {rules?.map((rule: Rule) => (
                 <div key={rule.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all">
                   <div className="flex items-center gap-3 flex-1">
                     <div className="w-8 h-8 bg-indigo-100 rounded flex items-center justify-center flex-shrink-0">
@@ -547,16 +626,23 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                   id="enableSchedule"
                   checked={schedule?.isEnabled || false}
                   onChange={(e) => {
+                    if (e.target.checked && !subscription?.canSchedule) {
+                      alert('Automatic scheduling is only available on the Pro plan ($7/month). Please upgrade to enable this feature.');
+                      return;
+                    }
                     updateSchedule.mutate({
                       isEnabled: e.target.checked,
                       frequencyDays: schedule?.frequencyDays || 7,
                     });
                   }}
-                  disabled={updateSchedule.isLoading}
-                  className="w-5 h-5 cursor-pointer text-indigo-600 rounded focus:ring-indigo-500"
+                  disabled={updateSchedule.isLoading || !subscription?.canSchedule}
+                  className="w-5 h-5 cursor-pointer text-indigo-600 rounded focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                 />
                 <label htmlFor="enableSchedule" className="text-gray-900 font-semibold cursor-pointer flex-1">
                   Enable automatic cleanup
+                  {!subscription?.canSchedule && (
+                    <span className="block text-xs text-gray-500 mt-1 font-normal">Pro plan required</span>
+                  )}
                 </label>
                 {schedule?.isEnabled && (
                   <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
@@ -567,6 +653,19 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                   </span>
                 )}
               </div>
+              {!subscription?.canSchedule && (
+                <div className="mt-4 bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                  <p className="text-sm text-indigo-800 mb-2">
+                    <strong>Upgrade to Pro</strong> to enable automatic scheduling
+                  </p>
+                  <button
+                    onClick={() => router.push(`/pricing?accountId=${accountId}`)}
+                    className="text-sm font-semibold text-indigo-600 hover:text-indigo-700 underline"
+                  >
+                    View Pro Plan →
+                  </button>
+                </div>
+              )}
 
               {/* Frequency Selection */}
               {schedule?.isEnabled && (
