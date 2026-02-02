@@ -196,7 +196,12 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center text-gray-600">
               <p className="mb-2">Klaviyo Spam Profile Cleaner</p>
-              <p className="text-sm">Securely manage and clean your Klaviyo profiles</p>
+              <p className="text-sm mb-2">Securely manage and clean your Klaviyo profiles</p>
+              <p className="text-sm">
+                <a href="/privacy" className="text-indigo-600 hover:text-indigo-700 underline">
+                  Privacy Policy
+                </a>
+              </p>
             </div>
           </div>
         </footer>
