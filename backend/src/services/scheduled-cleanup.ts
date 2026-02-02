@@ -70,19 +70,7 @@ export class ScheduledCleanupService {
         }
       }
 
-      // Check if scheduled cleanup is enabled
-      if (!account.scheduledCleanup?.isEnabled) {
-        result.error = 'Scheduled cleanup not enabled for this account';
-        return result;
-      }
-
-      // Check if account has rules
-      if (account.rules.length === 0) {
-        result.error = 'No active cleanup rules configured';
-        return result;
-      }
-
-      // Create cleanup run record
+      // Create cleanup run record early so we can track all attempts, even if they fail validation
       const cleanupRun = await withAccountContext(this.prisma, accountId, async () => {
         return await this.prisma.cleanupRun.create({
           data: {
@@ -91,6 +79,40 @@ export class ScheduledCleanupService {
           },
         });
       });
+
+      // Check if scheduled cleanup is enabled
+      if (!account.scheduledCleanup?.isEnabled) {
+        result.error = 'Scheduled cleanup not enabled for this account';
+        // Update cleanup run as failed
+        await withAccountContext(this.prisma, accountId, async () => {
+          await this.prisma.cleanupRun.update({
+            where: { id: cleanupRun.id },
+            data: {
+              status: 'FAILED',
+              completedAt: new Date(),
+              errorMessage: result.error,
+            },
+          });
+        });
+        return result;
+      }
+
+      // Check if account has rules
+      if (account.rules.length === 0) {
+        result.error = 'No active cleanup rules configured';
+        // Update cleanup run as failed
+        await withAccountContext(this.prisma, accountId, async () => {
+          await this.prisma.cleanupRun.update({
+            where: { id: cleanupRun.id },
+            data: {
+              status: 'FAILED',
+              completedAt: new Date(),
+              errorMessage: result.error,
+            },
+          });
+        });
+        return result;
+      }
 
       try {
         // Get valid access token (auto-refreshes if needed)
@@ -213,6 +235,23 @@ export class ScheduledCleanupService {
       });
 
       console.log(`Found ${dueAccounts.length} accounts due for cleanup`);
+
+      if (dueAccounts.length === 0) {
+        console.log('No accounts found due for cleanup. Checking all scheduled cleanups...');
+        // Log all scheduled cleanups for debugging
+        const allSchedules = await this.prisma.scheduledCleanup.findMany({
+          select: {
+            accountId: true,
+            isEnabled: true,
+            nextRunAt: true,
+            frequencyDays: true,
+          },
+        });
+        console.log(`Total scheduled cleanups in database: ${allSchedules.length}`);
+        allSchedules.forEach((schedule: { accountId: string; isEnabled: boolean; nextRunAt: Date | null; frequencyDays: number }) => {
+          console.log(`  Account ${schedule.accountId}: enabled=${schedule.isEnabled}, nextRunAt=${schedule.nextRunAt}, frequencyDays=${schedule.frequencyDays}`);
+        });
+      }
 
       // Process each account sequentially (to respect rate limits)
       for (const scheduledCleanup of dueAccounts) {
