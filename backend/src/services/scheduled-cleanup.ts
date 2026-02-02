@@ -105,7 +105,21 @@ export class ScheduledCleanupService {
         });
 
         // Update scheduled cleanup next run time
-        await this.updateNextRunTime(accountId, account.scheduledCleanup.frequencyDays);
+        // Validate frequencyDays before updating
+        const frequencyDays = account.scheduledCleanup.frequencyDays;
+        if (frequencyDays !== 1 && frequencyDays !== 7) {
+          console.warn(`Invalid frequencyDays ${frequencyDays} for account ${accountId}, defaulting to 7`);
+          // Update to valid default value
+          await withAccountContext(this.prisma, accountId, async () => {
+            await this.prisma.scheduledCleanup.update({
+              where: { accountId },
+              data: { frequencyDays: 7 },
+            });
+          });
+          await this.updateNextRunTime(accountId, 7);
+        } else {
+          await this.updateNextRunTime(accountId, frequencyDays);
+        }
 
         result.success = true;
       } catch (error: any) {
@@ -163,7 +177,7 @@ export class ScheduledCleanupService {
       try {
         const result = await this.processAccount(scheduledCleanup.accountId);
         results.push(result);
-        
+
         // Small delay between accounts to avoid overwhelming the system
         await new Promise(resolve => setTimeout(resolve, 1000));
       } catch (error: any) {
@@ -186,6 +200,11 @@ export class ScheduledCleanupService {
    * Update next run time based on frequency
    */
   async updateNextRunTime(accountId: string, frequencyDays: number): Promise<void> {
+    // Validate frequencyDays
+    if (frequencyDays !== 1 && frequencyDays !== 7) {
+      throw new Error(`Invalid frequencyDays: ${frequencyDays}. Must be 1 (daily) or 7 (weekly)`);
+    }
+
     const now = new Date();
     const nextRunAt = new Date(now.getTime() + frequencyDays * 24 * 60 * 60 * 1000);
 
