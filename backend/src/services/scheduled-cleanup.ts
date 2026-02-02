@@ -237,20 +237,24 @@ export class ScheduledCleanupService {
       console.log(`Found ${dueAccounts.length} accounts due for cleanup`);
 
       if (dueAccounts.length === 0) {
-        console.log('No accounts found due for cleanup. Checking all scheduled cleanups...');
-        // Log all scheduled cleanups for debugging
-        const allSchedules = await this.prisma.scheduledCleanup.findMany({
-          select: {
-            accountId: true,
-            isEnabled: true,
-            nextRunAt: true,
-            frequencyDays: true,
-          },
-        });
-        console.log(`Total scheduled cleanups in database: ${allSchedules.length}`);
-        allSchedules.forEach((schedule: { accountId: string; isEnabled: boolean; nextRunAt: Date | null; frequencyDays: number }) => {
-          console.log(`  Account ${schedule.accountId}: enabled=${schedule.isEnabled}, nextRunAt=${schedule.nextRunAt}, frequencyDays=${schedule.frequencyDays}`);
-        });
+        console.log('No accounts found due for cleanup.');
+        console.log('This could mean:');
+        console.log('  1. No accounts have scheduled cleanup enabled');
+        console.log('  2. All accounts have nextRunAt set to a future date');
+        console.log('  3. No ScheduledCleanup records exist in the database');
+        // Use raw SQL to avoid prepared statement conflicts with connection pooling
+        try {
+          const allSchedulesCount = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(*)::bigint as count FROM "ScheduledCleanup"
+          `;
+          const enabledCount = await this.prisma.$queryRaw<Array<{ count: bigint }>>`
+            SELECT COUNT(*)::bigint as count FROM "ScheduledCleanup" WHERE "isEnabled" = true
+          `;
+          console.log(`Total ScheduledCleanup records: ${allSchedulesCount[0]?.count || 0}`);
+          console.log(`Enabled ScheduledCleanup records: ${enabledCount[0]?.count || 0}`);
+        } catch (debugError: any) {
+          console.error('Could not fetch debug info:', debugError.message);
+        }
       }
 
       // Process each account sequentially (to respect rate limits)
