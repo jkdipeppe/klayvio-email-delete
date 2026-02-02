@@ -71,6 +71,8 @@ export default function Dashboard({ accountId }: { accountId: string }) {
 
   const rules = rulesData?.rules || rulesData || []; // Handle both old and new response format
   const ruleLimits = rulesData?.limits || { current: rules.length, max: 5, canCreateMore: true };
+  const maxProfilesPerDeletion = subscription?.maxProfilesPerDeletion || subscription?.limits?.maxProfilesPerDeletion || null;
+  const isFreeTier = subscription?.tier === 'FREE' || (!subscription?.tier && maxProfilesPerDeletion === 3);
 
   // Create rule mutation
   const createRule = useMutation(
@@ -132,7 +134,14 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       },
       onError: (error: any) => {
         if (!handleReauthError(error)) {
-          alert(`Failed to delete profiles: ${error.response?.data?.error || error.message}`);
+          const errorMessage = error.response?.data?.error || error.message;
+          alert(`Failed to delete profiles: ${errorMessage}`);
+          // If it's a limit error, show upgrade suggestion
+          if (error.response?.status === 403 && errorMessage.includes('Free tier')) {
+            if (confirm('Would you like to view pricing plans to upgrade?')) {
+              window.location.href = `/pricing?accountId=${accountId}`;
+            }
+          }
         }
       },
     }
@@ -257,7 +266,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                     {subscription.tier === 'PRO' ? 'Pro Plan' : subscription.tier === 'BASIC' ? 'Basic Plan' : 'Free Plan'}
                   </p>
                   <p className="text-sm text-gray-600">
-                    {subscription.tier === 'PRO' ? '$7/month' : subscription.tier === 'BASIC' ? '$5/month' : 'No subscription'}
+                    {subscription.tier === 'PRO' ? '$7/month' : subscription.tier === 'BASIC' ? '$5/month' : subscription.tier === 'FREE' ? 'Free' : 'Free'}
                     {subscription.subscription?.cancelAtPeriodEnd && subscription.subscription?.currentPeriodEnd && (
                       <span className="block text-xs text-yellow-700 mt-1">
                         Canceling on {new Date(subscription.subscription.currentPeriodEnd).toLocaleDateString()}
@@ -400,7 +409,10 @@ export default function Dashboard({ accountId }: { accountId: string }) {
               <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <p className="text-sm text-yellow-800">
                   <strong>Rule limit reached!</strong> You have {ruleLimits.current}/{ruleLimits.max} rules. 
-                  {subscription?.tier !== 'PRO' && (
+                  {subscription?.tier === 'FREE' && (
+                    <span> <a href={`/pricing?accountId=${accountId}`} className="underline font-semibold">Upgrade</a> for more rules.</span>
+                  )}
+                  {subscription?.tier === 'BASIC' && (
                     <span> <a href={`/pricing?accountId=${accountId}`} className="underline font-semibold">Upgrade to Pro</a> for up to 100 rules.</span>
                   )}
                 </p>
@@ -540,15 +552,28 @@ export default function Dashboard({ accountId }: { accountId: string }) {
               )}
             </button>
             {scanResults.length > 0 && (
-              <button
-                onClick={() => {
-                  if (confirm(`Are you sure you want to delete ${selectedProfiles.size} profile${selectedProfiles.size !== 1 ? 's' : ''}? This action cannot be undone.`)) {
-                    executeDeletion.mutate();
-                  }
-                }}
-                disabled={executeDeletion.isLoading || selectedProfiles.size === 0}
-                className="flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
+              <div className="flex flex-col gap-2">
+                {maxProfilesPerDeletion !== null && selectedProfiles.size > maxProfilesPerDeletion && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+                    <p>Free tier allows deleting up to {maxProfilesPerDeletion} profiles at a time. You have selected {selectedProfiles.size}.</p>
+                    <a href={`/pricing?accountId=${accountId}`} className="text-indigo-600 hover:text-indigo-700 underline font-medium mt-1 inline-block">
+                      Upgrade to delete more →
+                    </a>
+                  </div>
+                )}
+                <button
+                  onClick={() => {
+                    if (maxProfilesPerDeletion !== null && selectedProfiles.size > maxProfilesPerDeletion) {
+                      alert(`Free tier allows deleting up to ${maxProfilesPerDeletion} profiles at a time. Please select fewer profiles or upgrade your plan.`);
+                      return;
+                    }
+                    if (confirm(`Are you sure you want to delete ${selectedProfiles.size} profile${selectedProfiles.size !== 1 ? 's' : ''}? This action cannot be undone.`)) {
+                      executeDeletion.mutate();
+                    }
+                  }}
+                  disabled={executeDeletion.isLoading || selectedProfiles.size === 0 || (maxProfilesPerDeletion !== null && selectedProfiles.size > maxProfilesPerDeletion)}
+                  className="flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
                 {executeDeletion.isLoading ? (
                   <>
                     <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
@@ -565,7 +590,8 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                     Delete {selectedProfiles.size} Profile{selectedProfiles.size !== 1 ? 's' : ''}
                   </>
                 )}
-              </button>
+                </button>
+              </div>
             )}
           </div>
 
@@ -596,17 +622,26 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                   <div className="flex items-center gap-2 text-sm text-gray-600">
                     <input
                       type="checkbox"
-                      checked={selectedProfiles.size === scanResults.length}
+                      checked={selectedProfiles.size === scanResults.length && (maxProfilesPerDeletion === null || scanResults.length <= maxProfilesPerDeletion)}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          setSelectedProfiles(new Set(scanResults.map(r => r.profileId)));
+                          const allIds = scanResults.map(r => r.profileId);
+                          // Limit to maxProfilesPerDeletion if set
+                          const limitedIds = maxProfilesPerDeletion !== null 
+                            ? allIds.slice(0, maxProfilesPerDeletion)
+                            : allIds;
+                          setSelectedProfiles(new Set(limitedIds));
                         } else {
                           setSelectedProfiles(new Set());
                         }
                       }}
-                      className="cursor-pointer w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                      disabled={maxProfilesPerDeletion !== null && scanResults.length > maxProfilesPerDeletion}
+                      className="cursor-pointer w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
                     />
-                    <span>Select all</span>
+                    <span>
+                      Select all
+                      {maxProfilesPerDeletion !== null && scanResults.length > maxProfilesPerDeletion && ` (max ${maxProfilesPerDeletion} for free tier)`}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -623,13 +658,19 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                         onChange={(e) => {
                           const newSelected = new Set(selectedProfiles);
                           if (e.target.checked) {
+                            // Check limit before adding
+                            if (maxProfilesPerDeletion !== null && newSelected.size >= maxProfilesPerDeletion) {
+                              alert(`Free tier allows selecting up to ${maxProfilesPerDeletion} profiles at a time. Please upgrade to select more.`);
+                              return;
+                            }
                             newSelected.add(result.profileId);
                           } else {
                             newSelected.delete(result.profileId);
                           }
                           setSelectedProfiles(newSelected);
                         }}
-                        className="cursor-pointer w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 flex-shrink-0"
+                        disabled={maxProfilesPerDeletion !== null && !selectedProfiles.has(result.profileId) && selectedProfiles.size >= maxProfilesPerDeletion}
+                        className="cursor-pointer w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="text-gray-900 font-medium break-all">{result.email}</div>

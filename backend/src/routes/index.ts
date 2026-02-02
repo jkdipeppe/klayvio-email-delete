@@ -13,7 +13,7 @@ import { ScheduledCleanupService } from '../services/scheduled-cleanup';
 import { encrypt, decrypt } from '../utils/encryption';
 import { withAccountContext } from '../utils/rls';
 import { getValidAccessToken } from '../utils/token-manager';
-import { canCreateRule, canEnableScheduling, getSubscriptionInfo } from '../utils/subscription-limits';
+import { canCreateRule, canEnableScheduling, getSubscriptionInfo, getSubscriptionLimits } from '../utils/subscription-limits';
 import { AuthenticationRequiredError, isAuthenticationRequiredError } from '../utils/auth-errors';
 
 const router = Router();
@@ -139,9 +139,10 @@ router.get('/auth/callback/klaviyo', async (req, res) => {
 
         console.log('Account stored with ID:', account.id);
 
-        // Redirect to frontend dashboard
+        // Redirect to pricing page - it will handle navigation based on tier selection
+        // If user came from pricing page with a tier selected, pricing page will redirect accordingly
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-        const redirectUrl = `${frontendUrl}/dashboard?accountId=${account.id}`;
+        const redirectUrl = `${frontendUrl}/pricing?accountId=${account.id}`;
         console.log(`OAuth success! Redirecting to: ${redirectUrl}`);
         // Use 302 temporary redirect to ensure browser follows it
         res.status(302).redirect(redirectUrl);
@@ -286,11 +287,16 @@ router.post('/api/scan/:accountId/execute', async (req, res) => {
 
         const account = await prisma.account.findUnique({
             where: { id: req.params.accountId },
+            include: { subscription: true },
         });
 
         if (!account) {
             return res.status(404).json({ error: 'Account not found' });
         }
+
+        // Check subscription limits for deletion
+        const tier = account.subscription?.tier || null;
+        const limits = getSubscriptionLimits(tier);
 
         // Get valid access token (refresh if needed)
         const accessToken = await getValidAccessToken(prisma, account.id);
@@ -298,9 +304,18 @@ router.post('/api/scan/:accountId/execute', async (req, res) => {
         const scanner = new ProfileScanner(client, prisma);
 
         const matches = await scanner.scanProfiles(account.id);
-        const toDelete = profileIds
+        let toDelete = profileIds
             ? matches.filter(m => profileIds.includes(m.profileId))
             : matches;
+
+        // Enforce max profiles per deletion limit for FREE tier
+        if (limits.maxProfilesPerDeletion !== null && toDelete.length > limits.maxProfilesPerDeletion) {
+            return res.status(403).json({
+                error: `Free tier allows deleting up to ${limits.maxProfilesPerDeletion} profiles at a time. Please upgrade to delete more profiles.`,
+                limit: limits.maxProfilesPerDeletion,
+                attempted: toDelete.length,
+            });
+        }
 
         const result = await scanner.deleteMatchingProfiles(account.id, toDelete);
         res.json(result);

@@ -89,6 +89,7 @@ enum RunStatus {
 }
 
 enum SubscriptionTier {
+  FREE
   BASIC
   PRO
 }

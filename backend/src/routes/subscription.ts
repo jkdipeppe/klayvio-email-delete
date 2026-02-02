@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { PrismaClient, SubscriptionTier, SubscriptionStatus } from '@prisma/client';
 import Stripe from 'stripe';
 import { withAccountContext } from '../utils/rls';
+import { getSubscriptionInfo } from '../utils/subscription-limits';
 
 const router = Router();
 // Configure Prisma to disable prepared statements for connection pooling compatibility
@@ -41,27 +42,24 @@ router.get('/api/subscription/:accountId', async (req, res) => {
             return res.status(404).json({ error: 'Account not found' });
         }
 
-        const subscription = account.subscription;
-        const tier = subscription?.tier || null;
-        const limits = {
-            maxRules: tier === SubscriptionTier.BASIC ? 5 : tier === SubscriptionTier.PRO ? 100 : 5,
-            allowScheduling: tier === SubscriptionTier.PRO,
-        };
+        // Use getSubscriptionInfo to get consistent limits including maxProfilesPerDeletion
+        const subscriptionInfo = await getSubscriptionInfo(prisma, accountId);
 
         res.json({
-            tier,
-            status: subscription?.status || null,
-            limits,
-            currentRuleCount: account.rules.length,
-            canCreateMoreRules: account.rules.length < limits.maxRules,
-            canSchedule: limits.allowScheduling,
-            subscription: subscription ? {
-                id: subscription.id,
-                tier: subscription.tier,
-                status: subscription.status,
-                currentPeriodStart: subscription.currentPeriodStart,
-                currentPeriodEnd: subscription.currentPeriodEnd,
-                cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+            tier: subscriptionInfo.tier,
+            status: subscriptionInfo.status,
+            limits: subscriptionInfo.limits,
+            currentRuleCount: subscriptionInfo.currentRuleCount,
+            canCreateMoreRules: subscriptionInfo.canCreateMoreRules,
+            canSchedule: subscriptionInfo.canSchedule,
+            maxProfilesPerDeletion: subscriptionInfo.maxProfilesPerDeletion,
+            subscription: subscriptionInfo.subscription ? {
+                id: subscriptionInfo.subscription.id,
+                tier: subscriptionInfo.subscription.tier,
+                status: subscriptionInfo.subscription.status,
+                currentPeriodStart: subscriptionInfo.subscription.currentPeriodStart,
+                currentPeriodEnd: subscriptionInfo.subscription.currentPeriodEnd,
+                cancelAtPeriodEnd: subscriptionInfo.subscription.cancelAtPeriodEnd,
             } : null,
         });
     } catch (error: any) {
