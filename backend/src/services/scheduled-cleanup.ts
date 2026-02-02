@@ -3,6 +3,7 @@ import { KlaviyoClient } from './klaviyo-client';
 import { ProfileScanner } from './profile-scanner';
 import { getValidAccessToken } from '../utils/token-manager';
 import { withAccountContext } from '../utils/rls';
+import { AuthenticationRequiredError, isAuthenticationRequiredError } from '../utils/auth-errors';
 
 export interface CleanupResult {
   accountId: string;
@@ -93,7 +94,8 @@ export class ScheduledCleanupService {
 
       try {
         // Get valid access token (auto-refreshes if needed)
-        const accessToken = await getValidAccessToken(this.prisma, accountId);
+        // Enable retry for cron jobs to handle race conditions with re-authentication
+        const accessToken = await getValidAccessToken(this.prisma, accountId, true);
         const client = new KlaviyoClient(accessToken);
         const scanner = new ProfileScanner(client, this.prisma);
 
@@ -144,6 +146,12 @@ export class ScheduledCleanupService {
 
         result.success = true;
       } catch (error: any) {
+        // Check if this is an authentication error
+        const isAuthError = isAuthenticationRequiredError(error);
+        const errorMessage = isAuthError
+          ? 'Authentication required: Please reconnect your Klaviyo account in the dashboard.'
+          : error.message;
+
         // Update cleanup run as failed
         await withAccountContext(this.prisma, accountId, async () => {
           await this.prisma.cleanupRun.update({
@@ -154,14 +162,18 @@ export class ScheduledCleanupService {
               profilesFound: result.profilesFound,
               profilesDeleted: result.profilesDeleted,
               profilesFailed: result.profilesFailed,
-              errorMessage: error.message,
+              errorMessage: errorMessage,
             },
           });
         });
 
-        result.error = error.message;
+        result.error = errorMessage;
         // Don't re-throw - let cron job continue processing other accounts
-        console.error(`Failed to process account ${accountId}:`, error.message);
+        if (isAuthError) {
+          console.error(`Authentication required for account ${accountId}: User needs to reconnect Klaviyo account`);
+        } else {
+          console.error(`Failed to process account ${accountId}:`, error.message);
+        }
       }
     } catch (error: any) {
       console.error(`Error processing account ${accountId}:`, error);
