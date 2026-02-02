@@ -4,7 +4,16 @@ import Stripe from 'stripe';
 import { withAccountContext } from '../utils/rls';
 
 const router = Router();
-const prisma = new PrismaClient();
+// Configure Prisma to disable prepared statements for connection pooling compatibility
+const prisma = new PrismaClient({
+    datasources: {
+        db: {
+            url: process.env.DATABASE_URL?.includes('pgbouncer=true')
+                ? process.env.DATABASE_URL
+                : process.env.DATABASE_URL?.replace(/(\?|$)/, (match, p1) => p1 ? `${p1}&pgbouncer=true` : '?pgbouncer=true'),
+        },
+    },
+});
 
 // Initialize Stripe
 const stripe = process.env.STRIPE_SECRET_KEY

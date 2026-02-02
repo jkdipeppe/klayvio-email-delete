@@ -217,9 +217,11 @@ export class ScheduledCleanupService {
       // with connection pooling (Supabase uses port 6543 for pooling)
       // NOTE: This query works because RLS policy allows queries when no account context is set
       // (for system/cron operations). See enable_rls.sql for the policy.
-      // Using $queryRawUnsafe to completely bypass prepared statements
+      // Using $queryRawUnsafe with a unique query string each time to prevent statement caching
+      // The unique timestamp ensures Prisma doesn't try to reuse prepared statements
       const nowISO = now.toISOString();
-      const dueAccountsRaw = await this.prisma.$queryRawUnsafe(`
+      const uniqueId = `q${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const query = `
         SELECT 
           sc.id,
           sc."accountId",
@@ -233,7 +235,9 @@ export class ScheduledCleanupService {
         INNER JOIN "Account" a ON sc."accountId" = a.id
         WHERE sc."isEnabled" = true
         AND (sc."nextRunAt" <= '${nowISO}'::timestamp OR sc."nextRunAt" IS NULL)
-      `) as Array<{
+        -- ${uniqueId}
+      `;
+      const dueAccountsRaw = await this.prisma.$queryRawUnsafe(query) as Array<{
         id: string;
         accountId: string;
         isEnabled: boolean;

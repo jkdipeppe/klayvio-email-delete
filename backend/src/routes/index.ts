@@ -17,7 +17,17 @@ import { canCreateRule, canEnableScheduling, getSubscriptionInfo } from '../util
 import { AuthenticationRequiredError, isAuthenticationRequiredError } from '../utils/auth-errors';
 
 const router = Router();
-const prisma = new PrismaClient();
+// Configure Prisma to disable prepared statements for connection pooling compatibility
+// This is necessary when using Supabase connection pooling (port 6543)
+const prisma = new PrismaClient({
+    datasources: {
+        db: {
+            url: process.env.DATABASE_URL?.includes('pgbouncer=true')
+                ? process.env.DATABASE_URL
+                : process.env.DATABASE_URL?.replace(/(\?|$)/, (match, p1) => p1 ? `${p1}&pgbouncer=true` : '?pgbouncer=true'),
+        },
+    },
+});
 
 /**
  * Helper function to handle authentication errors gracefully
