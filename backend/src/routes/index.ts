@@ -312,6 +312,43 @@ router.get('/api/history/:accountId', async (req, res) => {
 
 // ==================== Scheduled Cleanup Endpoints ====================
 
+// Cron endpoint - processes all due accounts (protected by API key)
+// MUST be defined BEFORE /api/schedule/:accountId to avoid route conflict
+router.post('/api/schedule/run', async (req, res) => {
+    try {
+        // Protect with API key
+        const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
+        const expectedKey = process.env.CRON_API_KEY;
+
+        if (!expectedKey || apiKey !== expectedKey) {
+            return res.status(401).json({ error: 'Unauthorized' });
+        }
+
+        console.log('Cron job started - processing due accounts...');
+        const cleanupService = new ScheduledCleanupService(prisma);
+        const results = await cleanupService.processDueAccounts();
+
+        const summary = {
+            total: results.length,
+            successful: results.filter(r => r.success).length,
+            failed: results.filter(r => !r.success).length,
+            totalProfilesDeleted: results.reduce((sum, r) => sum + r.profilesDeleted, 0),
+            results,
+        };
+
+        console.log(`Cron job completed - Processed ${summary.total} accounts, ${summary.successful} successful, ${summary.failed} failed`);
+        res.json(summary);
+    } catch (error: any) {
+        console.error('Cron job error:', error);
+        console.error('Error stack:', error.stack);
+        // Return 500 for server errors, not 400
+        res.status(500).json({
+            error: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        });
+    }
+});
+
 // Get schedule configuration
 router.get('/api/schedule/:accountId', async (req, res) => {
     try {
@@ -381,7 +418,12 @@ router.post('/api/schedule/:accountId', async (req, res) => {
         }
 
         const cleanupService = new ScheduledCleanupService(prisma);
-        const nextRunAt = isEnabled ? cleanupService.calculateNextRunTime(frequencyDays) : null;
+        // Ensure frequencyDays is a valid number before calculating
+        const freqDaysNum = Number(frequencyDays);
+        if (isNaN(freqDaysNum) || (freqDaysNum !== 1 && freqDaysNum !== 7)) {
+            return res.status(400).json({ error: 'frequencyDays must be 1 (daily) or 7 (weekly)' });
+        }
+        const nextRunAt = isEnabled ? cleanupService.calculateNextRunTime(freqDaysNum) : null;
 
         // Upsert schedule with RLS context
         const schedule = await withAccountContext(prisma, accountId, async () => {
@@ -458,34 +500,6 @@ router.get('/api/schedule/:accountId/history', async (req, res) => {
         });
 
         res.json(runs);
-    } catch (error: any) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Cron endpoint - processes all due accounts (protected by API key)
-router.post('/api/schedule/run', async (req, res) => {
-    try {
-        // Protect with API key
-        const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
-        const expectedKey = process.env.CRON_API_KEY;
-
-        if (!expectedKey || apiKey !== expectedKey) {
-            return res.status(401).json({ error: 'Unauthorized' });
-        }
-
-        const cleanupService = new ScheduledCleanupService(prisma);
-        const results = await cleanupService.processDueAccounts();
-
-        const summary = {
-            total: results.length,
-            successful: results.filter(r => r.success).length,
-            failed: results.filter(r => !r.success).length,
-            totalProfilesDeleted: results.reduce((sum, r) => sum + r.profilesDeleted, 0),
-            results,
-        };
-
-        res.json(summary);
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }

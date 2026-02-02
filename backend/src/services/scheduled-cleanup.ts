@@ -175,62 +175,81 @@ export class ScheduledCleanupService {
    * Process all accounts that are due for cleanup
    */
   async processDueAccounts(): Promise<CleanupResult[]> {
-    const now = new Date();
-    const results: CleanupResult[] = [];
+    try {
+      const now = new Date();
+      const results: CleanupResult[] = [];
 
-    // Find all accounts due for cleanup
-    const dueAccounts = await this.prisma.scheduledCleanup.findMany({
-      where: {
-        isEnabled: true,
-        OR: [
-          { nextRunAt: { lte: now } },
-          { nextRunAt: null }, // First run
-        ],
-      },
-      include: {
-        account: true,
-      },
-    });
+      // Find all accounts due for cleanup
+      const dueAccounts = await this.prisma.scheduledCleanup.findMany({
+        where: {
+          isEnabled: true,
+          OR: [
+            { nextRunAt: { lte: now } },
+            { nextRunAt: null }, // First run
+          ],
+        },
+        include: {
+          account: true,
+        },
+      });
 
-    console.log(`Found ${dueAccounts.length} accounts due for cleanup`);
+      console.log(`Found ${dueAccounts.length} accounts due for cleanup`);
 
-    // Process each account sequentially (to respect rate limits)
-    for (const scheduledCleanup of dueAccounts) {
-      try {
-        // Validate and fix frequencyDays before processing
-        // Convert to number and check for null/undefined
-        const freqDays = Number(scheduledCleanup.frequencyDays);
-        const isValid = !isNaN(freqDays) && (freqDays === 1 || freqDays === 7);
+      // Process each account sequentially (to respect rate limits)
+      for (const scheduledCleanup of dueAccounts) {
+        try {
+          // Validate and fix frequencyDays before processing
+          // Convert to number and check for null/undefined
+          const freqDays = Number(scheduledCleanup.frequencyDays);
+          const isValid = !isNaN(freqDays) && (freqDays === 1 || freqDays === 7);
 
-        if (!isValid) {
-          console.warn(`Account ${scheduledCleanup.accountId} has invalid frequencyDays: ${scheduledCleanup.frequencyDays} (type: ${typeof scheduledCleanup.frequencyDays}), fixing to 7`);
-          await withAccountContext(this.prisma, scheduledCleanup.accountId, async () => {
-            await this.prisma.scheduledCleanup.update({
-              where: { accountId: scheduledCleanup.accountId },
-              data: { frequencyDays: 7 },
+          if (!isValid) {
+            console.warn(`Account ${scheduledCleanup.accountId} has invalid frequencyDays: ${scheduledCleanup.frequencyDays} (type: ${typeof scheduledCleanup.frequencyDays}), fixing to 7`);
+            await withAccountContext(this.prisma, scheduledCleanup.accountId, async () => {
+              await this.prisma.scheduledCleanup.update({
+                where: { accountId: scheduledCleanup.accountId },
+                data: { frequencyDays: 7 },
+              });
             });
+          }
+
+          const result = await this.processAccount(scheduledCleanup.accountId);
+          results.push(result);
+
+          // Small delay between accounts to avoid overwhelming the system
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error: any) {
+          console.error(`Failed to process account ${scheduledCleanup.accountId}:`, error);
+          console.error(`Error details:`, {
+            message: error.message,
+            stack: error.stack,
+            accountId: scheduledCleanup.accountId,
+          });
+          results.push({
+            accountId: scheduledCleanup.accountId,
+            success: false,
+            profilesFound: 0,
+            profilesDeleted: 0,
+            profilesFailed: 0,
+            error: error.message || 'Unknown error',
           });
         }
-
-        const result = await this.processAccount(scheduledCleanup.accountId);
-        results.push(result);
-
-        // Small delay between accounts to avoid overwhelming the system
-        await new Promise(resolve => setTimeout(resolve, 1000));
-      } catch (error: any) {
-        console.error(`Failed to process account ${scheduledCleanup.accountId}:`, error);
-        results.push({
-          accountId: scheduledCleanup.accountId,
-          success: false,
-          profilesFound: 0,
-          profilesDeleted: 0,
-          profilesFailed: 0,
-          error: error.message,
-        });
       }
-    }
 
-    return results;
+      return results;
+    } catch (error: any) {
+      console.error('Fatal error in processDueAccounts:', error);
+      console.error('Error stack:', error.stack);
+      // Return empty results array instead of throwing - let the cron endpoint handle the error
+      return [{
+        accountId: 'unknown',
+        success: false,
+        profilesFound: 0,
+        profilesDeleted: 0,
+        profilesFailed: 0,
+        error: error.message || 'Fatal error processing accounts',
+      }];
+    }
   }
 
   /**
@@ -271,8 +290,15 @@ export class ScheduledCleanupService {
    * Calculate next run time based on frequency
    */
   calculateNextRunTime(frequencyDays: number): Date {
+    // Validate and normalize frequencyDays
+    let validFrequencyDays = Number(frequencyDays);
+    if (isNaN(validFrequencyDays) || (validFrequencyDays !== 1 && validFrequencyDays !== 7)) {
+      console.warn(`calculateNextRunTime called with invalid frequencyDays ${frequencyDays}, defaulting to 7`);
+      validFrequencyDays = 7;
+    }
+
     const now = new Date();
-    return new Date(now.getTime() + frequencyDays * 24 * 60 * 60 * 1000);
+    return new Date(now.getTime() + validFrequencyDays * 24 * 60 * 60 * 1000);
   }
 }
 
