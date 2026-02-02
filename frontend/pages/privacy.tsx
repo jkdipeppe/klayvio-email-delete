@@ -85,7 +85,6 @@ export default function PrivacyPolicy() {
                   <li>All OAuth tokens are encrypted before storage using industry-standard encryption</li>
                   <li>Database access is protected with Row Level Security (RLS) policies</li>
                   <li>Secure HTTPS connections for all data transmission</li>
-                  <li>Regular security audits and updates</li>
                   <li>Access controls and authentication requirements</li>
                 </ul>
               </section>
@@ -142,7 +141,7 @@ export default function PrivacyPolicy() {
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-gray-900 mb-4">10. Contact Us</h2>
                 <p className="text-gray-700 leading-relaxed mb-4">
-                  If you have any questions about this Privacy Policy, please contact us through your account dashboard or by disconnecting and reconnecting your Klaviyo account to access support options.
+                  If you have any questions about this Privacy Policy, please contact us at antibotbuilders@gmail.com.
                 </p>
               </section>
             </div>
