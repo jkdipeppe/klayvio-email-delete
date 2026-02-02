@@ -37,7 +37,11 @@ export default function DashboardPage() {
     <>
       <Head>
         <title>Dashboard - Klaviyo Spam Profile Cleaner</title>
+        <meta name="description" content="Manage your spam profile cleanup rules and scheduled cleanups" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" type="image/png" href="/SpamProfileCleanerIcon.png" />
+        <link rel="apple-touch-icon" href="/SpamProfileCleanerIcon.png" />
+        <meta name="theme-color" content="#4F46E5" />
       </Head>
       <Dashboard accountId={accountId as string} />
     </>

@@ -40,7 +40,9 @@ export default function Home() {
         <title>Klaviyo Spam Profile Cleaner - Automate Profile Removal</title>
         <meta name="description" content="Automatically identify and remove spam profiles from your Klaviyo account using customizable email patterns, prefixes, and suffixes." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" type="image/png" href="/SpamProfileCleanerIcon.png" />
+        <link rel="apple-touch-icon" href="/SpamProfileCleanerIcon.png" />
+        <meta name="theme-color" content="#4F46E5" />
       </Head>
       <main className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         {/* Header */}

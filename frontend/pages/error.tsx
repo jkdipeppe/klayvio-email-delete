@@ -10,7 +10,11 @@ export default function ErrorPage() {
     <>
       <Head>
         <title>Error - Klaviyo Spam Profile Cleaner</title>
+        <meta name="description" content="Authentication error occurred" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="icon" type="image/png" href="/SpamProfileCleanerIcon.png" />
+        <link rel="apple-touch-icon" href="/SpamProfileCleanerIcon.png" />
+        <meta name="theme-color" content="#4F46E5" />
       </Head>
       <main className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8 text-center">
