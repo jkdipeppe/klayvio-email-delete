@@ -138,18 +138,125 @@ export default function Dashboard({ accountId }: { accountId: string }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-4xl mx-auto px-4">
-        <h1 className="text-3xl font-bold mb-8 text-gray-900">Spam Profile Cleaner</h1>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">Spam Profile Cleaner</h1>
+                <p className="text-sm text-gray-500">Dashboard</p>
+              </div>
+            </div>
+            <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-600">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span>Secure Connection</span>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border-l-4 border-indigo-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Active Rules</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+                  {rulesLoading ? '...' : rules?.length || 0}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border-l-4 border-green-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Profiles Found</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+                  {scanResults.length}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border-l-4 border-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Auto Cleanup</p>
+                <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+                  {schedule?.isEnabled ? 'ON' : 'OFF'}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Add Rule Section */}
-        <section className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Add Cleanup Rule</h2>
-          <div className="flex gap-4">
+        <section className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8">
+          <div className="flex items-center mb-6">
+            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Add Cleanup Rule</h2>
+              <p className="text-sm text-gray-500 mt-1">Create rules to automatically identify spam profiles</p>
+            </div>
+          </div>
+          
+          <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <p className="text-sm text-gray-600 mb-3 font-medium">Rule Types:</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600">
+              <div className="flex items-center">
+                <span className="font-semibold text-gray-900 mr-2">PREFIX:</span>
+                <span>Email starts with (e.g., "noreply")</span>
+              </div>
+              <div className="flex items-center">
+                <span className="font-semibold text-gray-900 mr-2">SUFFIX:</span>
+                <span>Email ends with (e.g., "@tempmail.com")</span>
+              </div>
+              <div className="flex items-center">
+                <span className="font-semibold text-gray-900 mr-2">DOMAIN:</span>
+                <span>Domain equals (e.g., "spam.com")</span>
+              </div>
+              <div className="flex items-center">
+                <span className="font-semibold text-gray-900 mr-2">CONTAINS:</span>
+                <span>Email contains (e.g., "test")</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
             <select
               value={newRule.type}
               onChange={(e) => setNewRule({ ...newRule, type: e.target.value as RuleType })}
-              className="border rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="border border-gray-300 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white text-gray-900"
             >
               <option value="PREFIX">Email starts with</option>
               <option value="SUFFIX">Email ends with</option>
@@ -160,125 +267,281 @@ export default function Dashboard({ accountId }: { accountId: string }) {
               type="text"
               value={newRule.pattern}
               onChange={(e) => setNewRule({ ...newRule, pattern: e.target.value })}
-              placeholder="e.g., noreply or tempmail.com"
-              className="border rounded px-3 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="e.g., noreply or @tempmail.com"
+              className="border border-gray-300 rounded-lg px-4 py-2.5 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             <button
               onClick={() => createRule.mutate(newRule)}
               disabled={!newRule.pattern || createRule.isLoading}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
             >
-              {createRule.isLoading ? 'Adding...' : 'Add Rule'}
+              {createRule.isLoading ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Adding...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                  Add Rule
+                </>
+              )}
             </button>
           </div>
         </section>
 
         {/* Active Rules */}
-        <section className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Active Rules</h2>
+        <section className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center">
+              <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center mr-3">
+                <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Active Rules</h2>
+                <p className="text-sm text-gray-500 mt-1">Rules currently identifying spam profiles</p>
+              </div>
+            </div>
+            {rules && rules.length > 0 && (
+              <span className="hidden sm:inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800">
+                {rules.length} {rules.length === 1 ? 'rule' : 'rules'}
+              </span>
+            )}
+          </div>
+          
           {rulesLoading ? (
-            <p className="text-gray-500">Loading...</p>
+            <div className="flex items-center justify-center py-12">
+              <svg className="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
           ) : rules?.length === 0 ? (
-            <p className="text-gray-500">No rules configured yet.</p>
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No rules configured</h3>
+              <p className="mt-1 text-sm text-gray-500">Get started by adding your first cleanup rule above.</p>
+            </div>
           ) : (
-            <ul className="space-y-2">
+            <div className="space-y-3">
               {rules?.map((rule) => (
-                <li key={rule.id} className="flex justify-between items-center border-b pb-2">
-                  <span className="text-gray-700">
-                    <strong className="text-gray-900">{rule.type}:</strong> {rule.pattern}
-                  </span>
+                <div key={rule.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 bg-gray-50 rounded-lg border border-gray-200 hover:border-indigo-300 hover:shadow-md transition-all">
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="w-8 h-8 bg-indigo-100 rounded flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-bold text-indigo-600">{rule.type.charAt(0)}</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-gray-900">{rule.type}:</span>
+                        <span className="text-sm text-gray-700 break-all">{rule.pattern}</span>
+                      </div>
+                    </div>
+                  </div>
                   <button
-                    onClick={() => deleteRule.mutate(rule.id)}
+                    onClick={() => {
+                      if (confirm(`Remove rule "${rule.type}: ${rule.pattern}"?`)) {
+                        deleteRule.mutate(rule.id);
+                      }
+                    }}
                     disabled={deleteRule.isLoading}
-                    className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                    className="flex items-center justify-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
                   >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
                     Remove
                   </button>
-                </li>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </section>
 
         {/* Scan Section */}
-        <section className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Scan & Clean</h2>
-          <div className="flex gap-4 mb-4">
+        <section className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8">
+          <div className="flex items-center mb-6">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Scan & Clean</h2>
+              <p className="text-sm text-gray-500 mt-1">Preview and delete matching spam profiles</p>
+            </div>
+          </div>
+          
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
             <button
               onClick={() => previewScan.mutate()}
               disabled={previewScan.isLoading || rules?.length === 0}
-              className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              {previewScan.isLoading ? 'Scanning...' : 'Preview Matches'}
+              {previewScan.isLoading ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Scanning...
+                </>
+              ) : (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  Preview Matches
+                </>
+              )}
             </button>
             {scanResults.length > 0 && (
               <button
                 onClick={() => {
-                  if (confirm(`Are you sure you want to delete ${selectedProfiles.size} profiles?`)) {
+                  if (confirm(`Are you sure you want to delete ${selectedProfiles.size} profile${selectedProfiles.size !== 1 ? 's' : ''}? This action cannot be undone.`)) {
                     executeDeletion.mutate();
                   }
                 }}
                 disabled={executeDeletion.isLoading || selectedProfiles.size === 0}
-                className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {executeDeletion.isLoading 
-                  ? 'Deleting...' 
-                  : `Delete ${selectedProfiles.size} Profiles`}
+                {executeDeletion.isLoading ? (
+                  <>
+                    <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete {selectedProfiles.size} Profile{selectedProfiles.size !== 1 ? 's' : ''}
+                  </>
+                )}
               </button>
             )}
           </div>
 
           {/* Scan Results */}
           {previewScan.isLoading && (
-            <div className="text-center py-8">
-              <p className="text-gray-600">Scanning profiles...</p>
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <svg className="animate-spin h-12 w-12 text-indigo-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="text-gray-600 font-medium">Scanning your Klaviyo profiles...</p>
+              <p className="text-sm text-gray-500 mt-2">This may take a few moments</p>
             </div>
           )}
           
           {scanResults.length > 0 && (
-            <div className="border rounded">
-              <div className="bg-gray-100 px-4 py-2 font-semibold text-gray-800">
-                Found {scanResults.length} matching profiles
-              </div>
-              <div className="max-h-64 overflow-y-auto">
-                {scanResults.map((result) => (
-                  <div
-                    key={result.profileId}
-                    className="flex items-center gap-3 px-4 py-2 border-t hover:bg-gray-50"
-                  >
+            <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm">
+              <div className="bg-gradient-to-r from-indigo-50 to-blue-50 px-4 sm:px-6 py-4 border-b border-gray-200">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span className="font-semibold text-gray-900">
+                      Found {scanResults.length} matching profile{scanResults.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
                     <input
                       type="checkbox"
-                      checked={selectedProfiles.has(result.profileId)}
+                      checked={selectedProfiles.size === scanResults.length}
                       onChange={(e) => {
-                        const newSelected = new Set(selectedProfiles);
                         if (e.target.checked) {
-                          newSelected.add(result.profileId);
+                          setSelectedProfiles(new Set(scanResults.map(r => r.profileId)));
                         } else {
-                          newSelected.delete(result.profileId);
+                          setSelectedProfiles(new Set());
                         }
-                        setSelectedProfiles(newSelected);
                       }}
-                      className="cursor-pointer"
+                      className="cursor-pointer w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                     />
-                    <span className="flex-1 text-gray-700">{result.email}</span>
-                    <span className="text-sm text-gray-500">{result.matchedRule}</span>
+                    <span>Select all</span>
+                  </div>
+                </div>
+              </div>
+              <div className="max-h-96 overflow-y-auto bg-white">
+                {scanResults.map((result, index) => (
+                  <div
+                    key={result.profileId}
+                    className={`flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-4 border-b border-gray-100 hover:bg-gray-50 transition-colors ${index === 0 ? '' : ''}`}
+                  >
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <input
+                        type="checkbox"
+                        checked={selectedProfiles.has(result.profileId)}
+                        onChange={(e) => {
+                          const newSelected = new Set(selectedProfiles);
+                          if (e.target.checked) {
+                            newSelected.add(result.profileId);
+                          } else {
+                            newSelected.delete(result.profileId);
+                          }
+                          setSelectedProfiles(newSelected);
+                        }}
+                        className="cursor-pointer w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500 flex-shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-gray-900 font-medium break-all">{result.email}</div>
+                        <div className="text-xs text-gray-500 mt-1">Matched: {result.matchedRule}</div>
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
+          
+          {!previewScan.isLoading && scanResults.length === 0 && rules && rules.length > 0 && (
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3 className="mt-2 text-sm font-medium text-gray-900">No matches found</h3>
+              <p className="mt-1 text-sm text-gray-500">Your Klaviyo account is clean! No profiles match your rules.</p>
+            </div>
+          )}
         </section>
 
         {/* Scheduled Cleanup Section */}
-        <section className="bg-white rounded-lg shadow p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Scheduled Cleanup</h2>
+        <section className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8">
+          <div className="flex items-center mb-6">
+            <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
+              <svg className="w-5 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Scheduled Cleanup</h2>
+              <p className="text-sm text-gray-500 mt-1">Automate profile removal on a schedule</p>
+            </div>
+          </div>
           
           {scheduleLoading ? (
-            <p className="text-gray-500">Loading...</p>
+            <div className="flex items-center justify-center py-12">
+              <svg className="animate-spin h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {/* Enable/Disable Toggle */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <input
                   type="checkbox"
                   id="enableSchedule"
@@ -290,22 +553,34 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                     });
                   }}
                   disabled={updateSchedule.isLoading}
-                  className="w-5 h-5 cursor-pointer"
+                  className="w-5 h-5 cursor-pointer text-indigo-600 rounded focus:ring-indigo-500"
                 />
-                <label htmlFor="enableSchedule" className="text-gray-700 font-medium cursor-pointer">
+                <label htmlFor="enableSchedule" className="text-gray-900 font-semibold cursor-pointer flex-1">
                   Enable automatic cleanup
                 </label>
+                {schedule?.isEnabled && (
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    Active
+                  </span>
+                )}
               </div>
 
               {/* Frequency Selection */}
               {schedule?.isEnabled && (
-                <div className="pl-8 space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Run every:
+                <div className="space-y-6 pl-2 sm:pl-4">
+                  <div className="bg-indigo-50 rounded-lg p-4 sm:p-6 border border-indigo-100">
+                    <label className="block text-sm font-semibold text-gray-900 mb-4">
+                      Run cleanup every:
                     </label>
-                    <div className="flex gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        schedule?.frequencyDays === 1 
+                          ? 'border-indigo-500 bg-indigo-50' 
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}>
                         <input
                           type="radio"
                           name="frequency"
@@ -313,11 +588,18 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                           checked={schedule?.frequencyDays === 1}
                           onChange={() => updateSchedule.mutate({ isEnabled: true, frequencyDays: 1 })}
                           disabled={updateSchedule.isLoading}
-                          className="cursor-pointer"
+                          className="cursor-pointer w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                         />
-                        <span className="text-gray-700">24 hours</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900">24 hours</div>
+                          <div className="text-xs text-gray-500">Daily cleanup</div>
+                        </div>
                       </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
+                      <label className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                        schedule?.frequencyDays === 7 
+                          ? 'border-indigo-500 bg-indigo-50' 
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}>
                         <input
                           type="radio"
                           name="frequency"
@@ -325,51 +607,96 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                           checked={schedule?.frequencyDays === 7}
                           onChange={() => updateSchedule.mutate({ isEnabled: true, frequencyDays: 7 })}
                           disabled={updateSchedule.isLoading}
-                          className="cursor-pointer"
+                          className="cursor-pointer w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                         />
-                        <span className="text-gray-700">7 days</span>
+                        <div className="flex-1">
+                          <div className="font-semibold text-gray-900">7 days</div>
+                          <div className="text-xs text-gray-500">Weekly cleanup</div>
+                        </div>
                       </label>
                     </div>
                   </div>
 
                   {/* Schedule Info */}
-                  <div className="bg-gray-50 rounded p-3 space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Last run:</span>
-                      <span className="text-gray-900">{formatDate(schedule?.lastRunAt || null)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Next run:</span>
-                      <span className="text-gray-900 font-medium">{getNextRunText()}</span>
+                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 sm:p-6 border border-gray-200">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-4">Schedule Status</h3>
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Last run:
+                        </div>
+                        <span className="text-sm font-medium text-gray-900">{formatDate(schedule?.lastRunAt || null)}</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                          </svg>
+                          Next run:
+                        </div>
+                        <span className="text-sm font-bold text-indigo-600">{getNextRunText()}</span>
+                      </div>
                     </div>
                   </div>
 
                   {/* Manual Run Button */}
-                  <div className="pt-2">
+                  <div>
                     <button
                       onClick={() => {
-                        if (confirm('Run cleanup now? This will delete all profiles matching your rules.')) {
+                        if (confirm('Run cleanup now? This will delete all profiles matching your active rules.')) {
                           manualRun.mutate();
                         }
                       }}
                       disabled={manualRun.isLoading || rules?.length === 0}
-                      className="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                     >
-                      {manualRun.isLoading ? 'Running...' : 'Run Cleanup Now'}
+                      {manualRun.isLoading ? (
+                        <>
+                          <svg className="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Running...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                          Run Cleanup Now
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
               )}
 
               {!schedule?.isEnabled && (
-                <p className="text-sm text-gray-500 pl-8">
-                  Enable automatic cleanup to have spam profiles deleted automatically based on your rules.
-                </p>
+                <div className="bg-gray-50 rounded-lg p-6 border-2 border-dashed border-gray-300 text-center">
+                  <svg className="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <p className="text-sm text-gray-600">
+                    Enable automatic cleanup to have spam profiles deleted automatically based on your rules.
+                  </p>
+                </div>
               )}
             </div>
           )}
         </section>
       </div>
+      
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center text-sm text-gray-600">
+            <p>Klaviyo Spam Profile Cleaner - Keep your account clean automatically</p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
