@@ -180,6 +180,8 @@ export class ScheduledCleanupService {
       const results: CleanupResult[] = [];
 
       // Find all accounts due for cleanup
+      // NOTE: This query works because RLS policy allows queries when no account context is set
+      // (for system/cron operations). See enable_rls.sql for the policy.
       const dueAccounts = await this.prisma.scheduledCleanup.findMany({
         where: {
           isEnabled: true,
@@ -189,7 +191,12 @@ export class ScheduledCleanupService {
           ],
         },
         include: {
-          account: true,
+          account: {
+            select: {
+              id: true,
+              klaviyoAccountId: true,
+            },
+          },
         },
       });
 

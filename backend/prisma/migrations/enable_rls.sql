@@ -154,10 +154,15 @@ DROP POLICY IF EXISTS "Users can update their own schedule" ON "ScheduledCleanup
 DROP POLICY IF EXISTS "Users can delete their own schedule" ON "ScheduledCleanup";
 
 -- Policy for ScheduledCleanup table
+-- Allow viewing when account context matches OR when no context is set (for system/cron operations)
 CREATE POLICY "Users can view their own schedule"
   ON "ScheduledCleanup"
   FOR SELECT
-  USING (check_account_access("accountId"::text));
+  USING (
+    check_account_access("accountId"::text)
+    OR
+    current_setting('app.current_account_id', true) IS NULL
+  );
 
 CREATE POLICY "Users can create their own schedule"
   ON "ScheduledCleanup"

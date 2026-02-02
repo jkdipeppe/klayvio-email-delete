@@ -320,7 +320,22 @@ router.post('/api/schedule/run', async (req, res) => {
         const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
         const expectedKey = process.env.CRON_API_KEY;
 
-        if (!expectedKey || apiKey !== expectedKey) {
+        // Log for debugging (don't log full keys in production)
+        console.log('Cron endpoint called - API key check:', {
+            hasApiKey: !!apiKey,
+            apiKeyLength: apiKey?.length || 0,
+            hasExpectedKey: !!expectedKey,
+            expectedKeyLength: expectedKey?.length || 0,
+            keysMatch: apiKey === expectedKey,
+        });
+
+        if (!expectedKey) {
+            console.error('CRON_API_KEY not set in environment variables');
+            return res.status(500).json({ error: 'Server configuration error: CRON_API_KEY not set' });
+        }
+
+        if (!apiKey || apiKey !== expectedKey) {
+            console.warn('Unauthorized cron request - API key mismatch');
             return res.status(401).json({ error: 'Unauthorized' });
         }
 
