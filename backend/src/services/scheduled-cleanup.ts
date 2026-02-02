@@ -107,8 +107,11 @@ export class ScheduledCleanupService {
         // Update scheduled cleanup next run time
         // Validate frequencyDays before updating
         const frequencyDays = account.scheduledCleanup.frequencyDays;
+        let validFrequencyDays = frequencyDays;
+        
         if (frequencyDays !== 1 && frequencyDays !== 7) {
           console.warn(`Invalid frequencyDays ${frequencyDays} for account ${accountId}, defaulting to 7`);
+          validFrequencyDays = 7;
           // Update to valid default value
           await withAccountContext(this.prisma, accountId, async () => {
             await this.prisma.scheduledCleanup.update({
@@ -116,10 +119,10 @@ export class ScheduledCleanupService {
               data: { frequencyDays: 7 },
             });
           });
-          await this.updateNextRunTime(accountId, 7);
-        } else {
-          await this.updateNextRunTime(accountId, frequencyDays);
         }
+        
+        // Update next run time with validated frequency
+        await this.updateNextRunTime(accountId, validFrequencyDays);
 
         result.success = true;
       } catch (error: any) {
@@ -139,7 +142,8 @@ export class ScheduledCleanupService {
         });
 
         result.error = error.message;
-        throw error;
+        // Don't re-throw - let cron job continue processing other accounts
+        console.error(`Failed to process account ${accountId}:`, error.message);
       }
     } catch (error: any) {
       console.error(`Error processing account ${accountId}:`, error);
@@ -175,6 +179,17 @@ export class ScheduledCleanupService {
     // Process each account sequentially (to respect rate limits)
     for (const scheduledCleanup of dueAccounts) {
       try {
+        // Validate and fix frequencyDays before processing
+        if (scheduledCleanup.frequencyDays !== 1 && scheduledCleanup.frequencyDays !== 7) {
+          console.warn(`Account ${scheduledCleanup.accountId} has invalid frequencyDays ${scheduledCleanup.frequencyDays}, fixing to 7`);
+          await withAccountContext(this.prisma, scheduledCleanup.accountId, async () => {
+            await this.prisma.scheduledCleanup.update({
+              where: { accountId: scheduledCleanup.accountId },
+              data: { frequencyDays: 7 },
+            });
+          });
+        }
+        
         const result = await this.processAccount(scheduledCleanup.accountId);
         results.push(result);
 

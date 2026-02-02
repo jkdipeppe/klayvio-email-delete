@@ -111,6 +111,11 @@ export default function Dashboard({ accountId }: { accountId: string }) {
         queryClient.invalidateQueries(['schedule', accountId]);
         queryClient.invalidateQueries(['schedule-history', accountId]);
       },
+      onError: (error: any) => {
+        const errorMessage = error.response?.data?.error || error.message || 'Failed to update schedule';
+        alert(`Error: ${errorMessage}`);
+        console.error('Schedule update error:', error);
+      },
     }
   );
 
@@ -679,39 +684,65 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                         schedule?.frequencyDays === 1 
                           ? 'border-indigo-500 bg-indigo-50' 
                           : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}>
+                      } ${updateSchedule.isLoading ? 'opacity-50' : ''}`}>
                         <input
                           type="radio"
                           name="frequency"
                           value="1"
                           checked={schedule?.frequencyDays === 1}
-                          onChange={() => updateSchedule.mutate({ isEnabled: true, frequencyDays: 1 })}
+                          onChange={(e) => {
+                            e.preventDefault();
+                            const frequencyDays = parseInt(e.target.value, 10);
+                            updateSchedule.mutate({ 
+                              isEnabled: schedule?.isEnabled !== false, 
+                              frequencyDays 
+                            });
+                          }}
                           disabled={updateSchedule.isLoading}
-                          className="cursor-pointer w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                          className="cursor-pointer w-4 h-4 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
                         />
                         <div className="flex-1">
                           <div className="font-semibold text-gray-900">24 hours</div>
                           <div className="text-xs text-gray-500">Daily cleanup</div>
                         </div>
+                        {updateSchedule.isLoading && schedule?.frequencyDays === 1 && (
+                          <svg className="animate-spin h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        )}
                       </label>
                       <label className={`flex items-center gap-3 p-4 rounded-lg border-2 cursor-pointer transition-all ${
                         schedule?.frequencyDays === 7 
                           ? 'border-indigo-500 bg-indigo-50' 
                           : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}>
+                      } ${updateSchedule.isLoading ? 'opacity-50' : ''}`}>
                         <input
                           type="radio"
                           name="frequency"
                           value="7"
                           checked={schedule?.frequencyDays === 7}
-                          onChange={() => updateSchedule.mutate({ isEnabled: true, frequencyDays: 7 })}
+                          onChange={(e) => {
+                            e.preventDefault();
+                            const frequencyDays = parseInt(e.target.value, 10);
+                            updateSchedule.mutate({ 
+                              isEnabled: schedule?.isEnabled !== false, 
+                              frequencyDays 
+                            });
+                          }}
                           disabled={updateSchedule.isLoading}
-                          className="cursor-pointer w-4 h-4 text-indigo-600 focus:ring-indigo-500"
+                          className="cursor-pointer w-4 h-4 text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed"
                         />
                         <div className="flex-1">
                           <div className="font-semibold text-gray-900">7 days</div>
                           <div className="text-xs text-gray-500">Weekly cleanup</div>
                         </div>
+                        {updateSchedule.isLoading && schedule?.frequencyDays === 7 && (
+                          <svg className="animate-spin h-4 w-4 text-indigo-600" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                        )}
                       </label>
                     </div>
                   </div>
