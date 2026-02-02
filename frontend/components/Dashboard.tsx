@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useRouter } from 'next/router';
 import axios from 'axios';
@@ -34,6 +34,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
   const [selectedProfiles, setSelectedProfiles] = useState<Set<string>>(new Set());
   const [showReauthModal, setShowReauthModal] = useState(false);
   const [reauthMessage, setReauthMessage] = useState('');
+  const [syncingSubscription, setSyncingSubscription] = useState(false);
 
   // Helper function to handle re-auth errors
   const handleReauthError = (error: any) => {
@@ -44,6 +45,41 @@ export default function Dashboard({ accountId }: { accountId: string }) {
     }
     return false;
   };
+
+  // Sync subscription from Stripe when redirected after successful checkout
+  // This is a fallback for when webhooks aren't available (e.g., local development)
+  useEffect(() => {
+    const syncSubscription = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const subscriptionStatus = urlParams.get('subscription');
+      
+      if (subscriptionStatus === 'success' && accountId) {
+        setSyncingSubscription(true);
+        try {
+          console.log('Syncing subscription from Stripe...');
+          const response = await axios.post(`/api/subscription/${accountId}/sync`);
+          console.log('Subscription sync result:', response.data);
+          
+          if (response.data.synced) {
+            // Refresh subscription data
+            queryClient.invalidateQueries(['subscription', accountId]);
+            queryClient.invalidateQueries(['rules', accountId]);
+          }
+          
+          // Remove the subscription query param from URL
+          const newUrl = new URL(window.location.href);
+          newUrl.searchParams.delete('subscription');
+          window.history.replaceState({}, '', newUrl.toString());
+        } catch (error) {
+          console.error('Failed to sync subscription:', error);
+        } finally {
+          setSyncingSubscription(false);
+        }
+      }
+    };
+
+    syncSubscription();
+  }, [accountId, queryClient]);
 
   // Fetch subscription status
   const { data: subscription, isLoading: subscriptionLoading, error: subscriptionError } = useQuery(
@@ -70,7 +106,23 @@ export default function Dashboard({ accountId }: { accountId: string }) {
   );
 
   const rules = rulesData?.rules || rulesData || []; // Handle both old and new response format
-  const ruleLimits = rulesData?.limits || { current: rules.length, max: 5, canCreateMore: true };
+  
+  // Determine max rules based on subscription tier: FREE=1, BASIC=5, PRO=100
+  const getMaxRulesForTier = (tier: string | null | undefined) => {
+    switch (tier) {
+      case 'PRO': return 100;
+      case 'BASIC': return 5;
+      case 'FREE':
+      default: return 1; // Free tier or no subscription
+    }
+  };
+  const maxRulesForTier = getMaxRulesForTier(subscription?.tier);
+  const ruleLimits = rulesData?.limits || { 
+    current: rules.length, 
+    max: maxRulesForTier, 
+    canCreateMore: rules.length < maxRulesForTier 
+  };
+  
   const maxProfilesPerDeletion = subscription?.maxProfilesPerDeletion || subscription?.limits?.maxProfilesPerDeletion || null;
   const isFreeTier = subscription?.tier === 'FREE' || (!subscription?.tier && maxProfilesPerDeletion === 3);
 

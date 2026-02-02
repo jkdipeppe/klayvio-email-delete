@@ -146,6 +146,116 @@ router.post('/api/subscription/checkout', async (req, res) => {
     }
 });
 
+// Sync subscription status from Stripe (fallback when webhooks aren't available, e.g., local dev)
+// This endpoint checks for active Stripe subscriptions and syncs them to the database
+router.post('/api/subscription/:accountId/sync', async (req, res) => {
+    try {
+        if (!stripe) {
+            return res.status(500).json({ error: 'Stripe not configured' });
+        }
+
+        const accountId = req.params.accountId;
+
+        // Verify account exists
+        const account = await prisma.account.findUnique({
+            where: { id: accountId },
+            include: { subscription: true },
+        });
+
+        if (!account) {
+            return res.status(404).json({ error: 'Account not found' });
+        }
+
+        // If we already have a subscription with a Stripe customer ID, check their subscriptions
+        let customerId = account.subscription?.stripeCustomerId;
+
+        if (!customerId) {
+            // Search for a customer by accountId metadata
+            const customers = await stripe.customers.search({
+                query: `metadata['accountId']:'${accountId}'`,
+            });
+
+            if (customers.data.length > 0) {
+                customerId = customers.data[0].id;
+            }
+        }
+
+        if (!customerId) {
+            return res.json({ synced: false, message: 'No Stripe customer found for this account' });
+        }
+
+        // Get active subscriptions for this customer
+        const subscriptions = await stripe.subscriptions.list({
+            customer: customerId,
+            status: 'active',
+            limit: 1,
+        });
+
+        if (subscriptions.data.length === 0) {
+            // Check for trialing subscriptions too
+            const trialingSubscriptions = await stripe.subscriptions.list({
+                customer: customerId,
+                status: 'trialing',
+                limit: 1,
+            });
+
+            if (trialingSubscriptions.data.length === 0) {
+                return res.json({ synced: false, message: 'No active subscription found in Stripe' });
+            }
+            subscriptions.data = trialingSubscriptions.data;
+        }
+
+        const stripeSubscription = subscriptions.data[0];
+        const priceId = stripeSubscription.items.data[0].price.id;
+
+        // Determine tier based on price ID
+        let tier: SubscriptionTier;
+        if (priceId === process.env.STRIPE_BASIC_PRICE_ID) {
+            tier = SubscriptionTier.BASIC;
+        } else if (priceId === process.env.STRIPE_PRO_PRICE_ID) {
+            tier = SubscriptionTier.PRO;
+        } else {
+            // Default to BASIC if we can't determine
+            console.warn(`Unknown price ID: ${priceId}, defaulting to BASIC`);
+            tier = SubscriptionTier.BASIC;
+        }
+
+        // Upsert subscription in database
+        const subscription = await withAccountContext(prisma, accountId, async () => {
+            return await prisma.subscription.upsert({
+                where: { accountId },
+                create: {
+                    accountId,
+                    tier,
+                    status: stripeSubscription.status === 'active' ? SubscriptionStatus.ACTIVE : SubscriptionStatus.TRIALING,
+                    stripeCustomerId: customerId!,
+                    stripeSubscriptionId: stripeSubscription.id,
+                    stripePriceId: priceId,
+                    currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
+                    currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+                    cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+                },
+                update: {
+                    tier,
+                    status: stripeSubscription.status === 'active' ? SubscriptionStatus.ACTIVE : SubscriptionStatus.TRIALING,
+                    stripeCustomerId: customerId!,
+                    stripeSubscriptionId: stripeSubscription.id,
+                    stripePriceId: priceId,
+                    currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
+                    currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+                    cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+                },
+            });
+        });
+
+        console.log(`Synced subscription for account ${accountId}: ${tier}`);
+        res.json({ synced: true, subscription });
+    } catch (error: any) {
+        console.error('Sync subscription error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Stripe webhook handler
 router.post('/api/subscription/webhook', async (req, res) => {
     if (!stripe) {
