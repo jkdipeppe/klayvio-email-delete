@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import { KlaviyoClient } from './klaviyo-client';
 import { ProfileScanner } from './profile-scanner';
 import { getValidAccessToken } from '../utils/token-manager';
@@ -213,26 +213,50 @@ export class ScheduledCleanupService {
       const now = new Date();
       const results: CleanupResult[] = [];
 
-      // Find all accounts due for cleanup
+      // Find all accounts due for cleanup using raw SQL to avoid prepared statement conflicts
+      // with connection pooling (Supabase uses port 6543 for pooling)
       // NOTE: This query works because RLS policy allows queries when no account context is set
       // (for system/cron operations). See enable_rls.sql for the policy.
-      const dueAccounts = await this.prisma.scheduledCleanup.findMany({
-        where: {
-          isEnabled: true,
-          OR: [
-            { nextRunAt: { lte: now } },
-            { nextRunAt: null }, // First run
-          ],
+      // Using $queryRawUnsafe to completely bypass prepared statements
+      const nowISO = now.toISOString();
+      const dueAccountsRaw = await this.prisma.$queryRawUnsafe(`
+        SELECT 
+          sc.id,
+          sc."accountId",
+          sc."isEnabled",
+          sc."frequencyDays",
+          sc."lastRunAt",
+          sc."nextRunAt",
+          a.id as account_id,
+          a."klaviyoAccountId" as account_klaviyoAccountId
+        FROM "ScheduledCleanup" sc
+        INNER JOIN "Account" a ON sc."accountId" = a.id
+        WHERE sc."isEnabled" = true
+        AND (sc."nextRunAt" <= '${nowISO}'::timestamp OR sc."nextRunAt" IS NULL)
+      `) as Array<{
+        id: string;
+        accountId: string;
+        isEnabled: boolean;
+        frequencyDays: number;
+        lastRunAt: Date | null;
+        nextRunAt: Date | null;
+        account_id: string;
+        account_klaviyoAccountId: string;
+      }>;
+
+      // Transform raw results to match expected structure
+      const dueAccounts = dueAccountsRaw.map(row => ({
+        id: row.id,
+        accountId: row.accountId,
+        isEnabled: row.isEnabled,
+        frequencyDays: row.frequencyDays,
+        lastRunAt: row.lastRunAt,
+        nextRunAt: row.nextRunAt,
+        account: {
+          id: row.account_id,
+          klaviyoAccountId: row.account_klaviyoAccountId,
         },
-        include: {
-          account: {
-            select: {
-              id: true,
-              klaviyoAccountId: true,
-            },
-          },
-        },
-      });
+      }));
 
       console.log(`Found ${dueAccounts.length} accounts due for cleanup`);
 
