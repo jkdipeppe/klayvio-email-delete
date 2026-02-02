@@ -139,11 +139,25 @@ router.get('/auth/callback/klaviyo', async (req, res) => {
 
         console.log('Account stored with ID:', account.id);
 
-        // Redirect to pricing page - it will handle navigation based on tier selection
-        // If user came from pricing page with a tier selected, pricing page will redirect accordingly
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
-        const redirectUrl = `${frontendUrl}/pricing?accountId=${account.id}`;
-        console.log(`OAuth success! Redirecting to: ${redirectUrl}`);
+
+        // Check if user has an existing subscription
+        const existingSubscription = await prisma.subscription.findUnique({
+            where: { accountId: account.id },
+        });
+
+        let redirectUrl: string;
+        if (existingSubscription && existingSubscription.status === 'ACTIVE') {
+            // User has active subscription - go to dashboard
+            redirectUrl = `${frontendUrl}/dashboard?accountId=${account.id}`;
+            console.log(`OAuth success! User has subscription, redirecting to dashboard: ${redirectUrl}`);
+        } else {
+            // No subscription - go to pricing page for tier selection
+            // Pricing page will handle navigation based on tier selection from sessionStorage
+            redirectUrl = `${frontendUrl}/pricing?accountId=${account.id}`;
+            console.log(`OAuth success! No subscription, redirecting to pricing: ${redirectUrl}`);
+        }
+
         // Use 302 temporary redirect to ensure browser follows it
         res.status(302).redirect(redirectUrl);
     } catch (err: any) {
