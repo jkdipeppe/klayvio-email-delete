@@ -3,22 +3,37 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import axios from 'axios';
 
+const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
+
 export default function PricingPage() {
   const router = useRouter();
-  const { accountId, tier: selectedTier } = router.query;
+  const { accountId: urlAccountId, tier: selectedTier } = router.query;
   const [loading, setLoading] = useState(false);
   const [currentSubscription, setCurrentSubscription] = useState<any>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [accountId, setAccountId] = useState<string | null>(null);
 
   useEffect(() => {
     // Wait for router to be ready
     if (!router.isReady) return;
 
-    // Check if we have accountId from OAuth callback
-    if (accountId && typeof accountId === 'string') {
+    // Check for accountId from URL (OAuth callback) or localStorage
+    let resolvedAccountId: string | null = null;
+    
+    if (urlAccountId && typeof urlAccountId === 'string') {
+      resolvedAccountId = urlAccountId;
+      // Save to localStorage for future visits
+      localStorage.setItem(ACCOUNT_ID_KEY, resolvedAccountId);
+    } else {
+      // Check localStorage for saved accountId
+      resolvedAccountId = localStorage.getItem(ACCOUNT_ID_KEY);
+    }
+
+    if (resolvedAccountId) {
+      setAccountId(resolvedAccountId);
       setIsAuthenticated(true);
-      fetchSubscriptionStatus(accountId);
+      fetchSubscriptionStatus(resolvedAccountId);
       
       // Check for tier selection from sessionStorage (set before OAuth) or URL param
       const storedTier = sessionStorage.getItem('selectedTier');
@@ -29,7 +44,7 @@ export default function PricingPage() {
         sessionStorage.removeItem('selectedTier');
         // Wait for subscription status to load, then handle navigation
         setTimeout(() => {
-          handlePostAuthTier(accountId, tierToUse);
+          handlePostAuthTier(resolvedAccountId!, tierToUse);
         }, 1000); // Give time for subscription status to load
       } else {
         setCheckingAuth(false);
@@ -38,7 +53,7 @@ export default function PricingPage() {
       setIsAuthenticated(false);
       setCheckingAuth(false);
     }
-  }, [router.isReady, accountId, selectedTier]);
+  }, [router.isReady, urlAccountId, selectedTier]);
 
   const fetchSubscriptionStatus = async (accountId: string) => {
     try {

@@ -4,12 +4,33 @@ import Head from 'next/head';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import axios from 'axios';
 
+const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
+
 export default function SubscriptionPage() {
   const router = useRouter();
-  const { accountId } = router.query;
+  const { accountId: urlAccountId } = router.query;
   const queryClient = useQueryClient();
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showChangeTierConfirm, setShowChangeTierConfirm] = useState<string | null>(null);
+  const [accountId, setAccountId] = useState<string | null>(null);
+
+  // Resolve accountId from URL or localStorage
+  useEffect(() => {
+    if (!router.isReady) return;
+    
+    if (urlAccountId && typeof urlAccountId === 'string') {
+      setAccountId(urlAccountId);
+      localStorage.setItem(ACCOUNT_ID_KEY, urlAccountId);
+    } else {
+      const savedAccountId = localStorage.getItem(ACCOUNT_ID_KEY);
+      if (savedAccountId) {
+        setAccountId(savedAccountId);
+      } else {
+        // No accountId - redirect to home
+        router.push('/');
+      }
+    }
+  }, [router.isReady, urlAccountId, router]);
 
   // Fetch subscription status
   const { data: subscription, isLoading, refetch } = useQuery(

@@ -1,28 +1,36 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { useQuery, useMutation, useQueryClient } from 'react-query';
-import axios from 'axios';
 import Head from 'next/head';
 import Dashboard from '@/components/Dashboard';
 
+const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
+
 export default function DashboardPage() {
   const router = useRouter();
-  const { accountId } = router.query;
+  const { accountId: urlAccountId } = router.query;
+  const [accountId, setAccountId] = useState<string | null>(null);
 
   useEffect(() => {
     // Wait for router to be ready before checking
     if (!router.isReady) {
-      console.log('Router not ready yet...');
       return;
     }
     
-    console.log('Dashboard page - accountId:', accountId, 'Full query:', router.query);
-    
-    if (!accountId) {
-      console.log('No accountId found, redirecting to home');
-      router.push('/');
+    // Check URL first, then localStorage
+    if (urlAccountId && typeof urlAccountId === 'string') {
+      setAccountId(urlAccountId);
+      localStorage.setItem(ACCOUNT_ID_KEY, urlAccountId);
+    } else {
+      const savedAccountId = localStorage.getItem(ACCOUNT_ID_KEY);
+      if (savedAccountId) {
+        setAccountId(savedAccountId);
+      } else {
+        // No accountId found anywhere - redirect to home
+        console.log('No accountId found, redirecting to home');
+        router.push('/');
+      }
     }
-  }, [accountId, router.isReady, router]);
+  }, [urlAccountId, router.isReady, router]);
 
   // Show loading while router is initializing or accountId is not available
   if (!router.isReady || !accountId) {

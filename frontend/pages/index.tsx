@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 
+const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
+
 export default function Home() {
   const router = useRouter();
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -12,10 +14,20 @@ export default function Home() {
     
     // Check if we have accountId in URL (from OAuth callback)
     const { accountId } = router.query;
-    if (accountId) {
+    if (accountId && typeof accountId === 'string') {
+      // Save to localStorage for future visits
+      localStorage.setItem(ACCOUNT_ID_KEY, accountId);
       router.push(`/dashboard?accountId=${accountId}`);
       return;
     }
+    
+    // Check if we have a saved accountId in localStorage
+    const savedAccountId = localStorage.getItem(ACCOUNT_ID_KEY);
+    if (savedAccountId) {
+      router.push(`/dashboard?accountId=${savedAccountId}`);
+      return;
+    }
+    
     setCheckingAuth(false);
   }, [router.isReady, router.query, router]);
 
