@@ -2,8 +2,16 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
 import axios from 'axios';
+import { AlertModal } from '../components/Modal';
 
 const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
+
+interface AlertState {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  variant: 'success' | 'error' | 'warning' | 'info';
+}
 
 export default function PricingPage() {
   const router = useRouter();
@@ -13,6 +21,11 @@ export default function PricingPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [alertModal, setAlertModal] = useState<AlertState>({ isOpen: false, title: '', message: '', variant: 'info' });
+  
+  const showAlert = (title: string, message: string, variant: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertModal({ isOpen: true, title, message, variant });
+  };
 
   useEffect(() => {
     // Wait for router to be ready
@@ -108,7 +121,7 @@ export default function PricingPage() {
         window.location.href = res.data.url;
       }
     } catch (error: any) {
-      alert(`Error: ${error.response?.data?.error || error.message}`);
+      showAlert('Error', error.response?.data?.error || error.message, 'error');
       setLoading(false);
     }
   };
@@ -353,6 +366,15 @@ export default function PricingPage() {
             )}
           </div>
         </div>
+
+        {/* Alert Modal */}
+        <AlertModal
+          isOpen={alertModal.isOpen}
+          onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+          title={alertModal.title}
+          message={alertModal.message}
+          variant={alertModal.variant}
+        />
 
         {/* Footer */}
         <footer className="bg-white border-t border-gray-200 mt-16">

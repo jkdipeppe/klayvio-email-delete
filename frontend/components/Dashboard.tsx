@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { isReauthRequired, getReauthMessage } from '../utils/auth-errors';
+import { ConfirmModal, AlertModal } from './Modal';
 
 const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
 
@@ -28,6 +29,17 @@ interface Schedule {
   nextRunAt: string | null;
 }
 
+// Modal state interface
+interface ModalState {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  variant?: 'success' | 'error' | 'warning' | 'info' | 'danger';
+  onConfirm?: () => void;
+  confirmText?: string;
+  isLoading?: boolean;
+}
+
 export default function Dashboard({ accountId }: { accountId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -37,6 +49,26 @@ export default function Dashboard({ accountId }: { accountId: string }) {
   const [showReauthModal, setShowReauthModal] = useState(false);
   const [reauthMessage, setReauthMessage] = useState('');
   const [syncingSubscription, setSyncingSubscription] = useState(false);
+  
+  // Modal states
+  const [alertModal, setAlertModal] = useState<ModalState>({ isOpen: false, title: '', message: '' });
+  const [confirmModal, setConfirmModal] = useState<ModalState>({ isOpen: false, title: '', message: '' });
+  
+  // Helper to show alert modal
+  const showAlert = (title: string, message: string, variant: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertModal({ isOpen: true, title, message, variant });
+  };
+  
+  // Helper to show confirm modal
+  const showConfirm = (
+    title: string, 
+    message: string, 
+    onConfirm: () => void, 
+    variant: 'danger' | 'warning' | 'info' = 'info',
+    confirmText: string = 'Confirm'
+  ) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm, variant, confirmText, isLoading: false });
+  };
 
   // Helper function to handle re-auth errors
   const handleReauthError = (error: any) => {
@@ -153,7 +185,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       },
       onError: (error: any) => {
         if (!handleReauthError(error)) {
-          alert(`Failed to create rule: ${error.response?.data?.error || error.message}`);
+          showAlert('Error', `Failed to create rule: ${error.response?.data?.error || error.message}`, 'error');
         }
       },
     }
@@ -166,7 +198,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       onSuccess: () => queryClient.invalidateQueries(['rules', accountId]),
       onError: (error: any) => {
         if (!handleReauthError(error)) {
-          alert(`Failed to delete rule: ${error.response?.data?.error || error.message}`);
+          showAlert('Error', `Failed to delete rule: ${error.response?.data?.error || error.message}`, 'error');
         }
       },
     }
@@ -182,7 +214,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       },
       onError: (error: any) => {
         if (!handleReauthError(error)) {
-          alert(`Failed to preview scan: ${error.response?.data?.error || error.message}`);
+          showAlert('Scan Failed', `Failed to preview scan: ${error.response?.data?.error || error.message}`, 'error');
         }
       },
     }
@@ -192,10 +224,24 @@ export default function Dashboard({ accountId }: { accountId: string }) {
   const executeDeletion = useMutation(
     () => axios.post(`/api/scan/${accountId}/execute`, {
       profileIds: Array.from(selectedProfiles),
+    }, {
+      timeout: 120000, // 2 minute timeout - deletions can take a while due to rate limiting
     }),
     {
+      onMutate: () => {
+        // Show immediate feedback that deletion has started
+        showAlert(
+          'Deletion In Progress',
+          `Deleting ${selectedProfiles.size} profile${selectedProfiles.size !== 1 ? 's' : ''}...\n\nThis process may take a few minutes due to API rate limits. You can wait or check back later.\n\nNote: It may take some time for deletions to reflect in your Klaviyo dashboard.`,
+          'info'
+        );
+      },
       onSuccess: (res) => {
-        alert(`Deleted: ${res.data.deleted}, Failed: ${res.data.failed}`);
+        showAlert(
+          'Deletion Complete',
+          `Successfully deleted: ${res.data.deleted}${res.data.failed > 0 ? `\nFailed: ${res.data.failed}` : ''}\n\nNote: It may take a few minutes for changes to appear in your Klaviyo dashboard.`,
+          res.data.failed > 0 ? 'warning' : 'success'
+        );
         setScanResults([]);
         setSelectedProfiles(new Set());
         queryClient.invalidateQueries(['rules', accountId]);
@@ -203,12 +249,27 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       onError: (error: any) => {
         if (!handleReauthError(error)) {
           const errorMessage = error.response?.data?.error || error.message;
-          alert(`Failed to delete profiles: ${errorMessage}`);
           // If it's a limit error, show upgrade suggestion
           if (error.response?.status === 403 && errorMessage.includes('Free tier')) {
-            if (confirm('Would you like to view pricing plans to upgrade?')) {
-              window.location.href = `/pricing?accountId=${accountId}`;
-            }
+            showConfirm(
+              'Upgrade Required',
+              `${errorMessage}\n\nWould you like to view pricing plans to upgrade?`,
+              () => window.location.href = `/pricing?accountId=${accountId}`,
+              'info',
+              'View Plans'
+            );
+          } else if (error.response?.status === 500 || error.code === 'ECONNABORTED') {
+            // 500 errors or timeouts during deletion likely mean the process is still running
+            showAlert(
+              'Deletion May Be In Progress',
+              `The deletion request timed out, but profiles may still be processing in the background.\n\nDue to Klaviyo's rate limits, bulk deletions can take several minutes.\n\nPlease check your Klaviyo dashboard in a few minutes to confirm the deletions.\n\nTip: You can also set up automatic scheduled cleanups to avoid manual deletion waits.`,
+              'warning'
+            );
+            // Clear the UI anyway since we don't know the actual status
+            setScanResults([]);
+            setSelectedProfiles(new Set());
+          } else {
+            showAlert('Deletion Failed', errorMessage, 'error');
           }
         }
       },
@@ -239,7 +300,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       onError: (error: any) => {
         if (!handleReauthError(error)) {
           const errorMessage = error.response?.data?.error || error.message || 'Failed to update schedule';
-          alert(`Error: ${errorMessage}`);
+          showAlert('Schedule Error', errorMessage, 'error');
           console.error('Schedule update error:', error);
         }
       },
@@ -251,13 +312,17 @@ export default function Dashboard({ accountId }: { accountId: string }) {
     () => axios.post(`/api/schedule/${accountId}/run`),
     {
       onSuccess: (res) => {
-        alert(`Cleanup completed!\nFound: ${res.data.profilesFound}\nDeleted: ${res.data.profilesDeleted}\nFailed: ${res.data.profilesFailed}`);
+        showAlert(
+          'Cleanup Complete',
+          `Found: ${res.data.profilesFound}\nDeleted: ${res.data.profilesDeleted}\nFailed: ${res.data.profilesFailed}`,
+          res.data.profilesFailed > 0 ? 'warning' : 'success'
+        );
         queryClient.invalidateQueries(['schedule', accountId]);
         queryClient.invalidateQueries(['schedule-history', accountId]);
       },
       onError: (error: any) => {
         if (!handleReauthError(error)) {
-          alert(`Cleanup failed: ${error.response?.data?.error || error.message}`);
+          showAlert('Cleanup Failed', error.response?.data?.error || error.message, 'error');
         }
       },
     }
@@ -576,9 +641,13 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                   </div>
                   <button
                     onClick={() => {
-                      if (confirm(`Remove rule "${rule.type}: ${rule.pattern}"?`)) {
-                        deleteRule.mutate(rule.id);
-                      }
+                      showConfirm(
+                        'Remove Rule',
+                        `Are you sure you want to remove the rule "${rule.type}: ${rule.pattern}"?`,
+                        () => deleteRule.mutate(rule.id),
+                        'danger',
+                        'Remove'
+                      );
                     }}
                     disabled={deleteRule.isLoading}
                     className="flex items-center justify-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
@@ -644,12 +713,22 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                 <button
                   onClick={() => {
                     if (maxProfilesPerDeletion !== null && selectedProfiles.size > maxProfilesPerDeletion) {
-                      alert(`Free tier allows deleting up to ${maxProfilesPerDeletion} profiles at a time. Please select fewer profiles or upgrade your plan.`);
+                      showConfirm(
+                        'Upgrade Required',
+                        `Free tier allows deleting up to ${maxProfilesPerDeletion} profiles at a time. You have selected ${selectedProfiles.size}.\n\nWould you like to view pricing plans to upgrade?`,
+                        () => window.location.href = `/pricing?accountId=${accountId}`,
+                        'warning',
+                        'View Plans'
+                      );
                       return;
                     }
-                    if (confirm(`Are you sure you want to delete ${selectedProfiles.size} profile${selectedProfiles.size !== 1 ? 's' : ''}? This action cannot be undone.`)) {
-                      executeDeletion.mutate();
-                    }
+                    showConfirm(
+                      'Delete Profiles',
+                      `Are you sure you want to delete ${selectedProfiles.size} profile${selectedProfiles.size !== 1 ? 's' : ''}?\n\nThis action cannot be undone.\n\nNote: Due to Klaviyo's rate limits, bulk deletions may take several minutes to complete. Changes may take additional time to appear in your Klaviyo dashboard.`,
+                      () => executeDeletion.mutate(),
+                      'danger',
+                      'Start Deletion'
+                    );
                   }}
                   disabled={executeDeletion.isLoading || selectedProfiles.size === 0 || (maxProfilesPerDeletion !== null && selectedProfiles.size > maxProfilesPerDeletion)}
                   className="flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -660,7 +739,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
-                    Deleting...
+                    Deleting... (this may take a few minutes)
                   </>
                 ) : (
                   <>
@@ -671,6 +750,11 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                   </>
                 )}
                 </button>
+                {executeDeletion.isLoading && (
+                  <p className="text-xs text-gray-500 text-center">
+                    Please wait - deletions are processed with rate limiting to comply with Klaviyo API limits
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -740,7 +824,11 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                           if (e.target.checked) {
                             // Check limit before adding
                             if (maxProfilesPerDeletion !== null && newSelected.size >= maxProfilesPerDeletion) {
-                              alert(`Free tier allows selecting up to ${maxProfilesPerDeletion} profiles at a time. Please upgrade to select more.`);
+                              showAlert(
+                                'Selection Limit',
+                                `Free tier allows selecting up to ${maxProfilesPerDeletion} profiles at a time. Please upgrade to select more.`,
+                                'warning'
+                              );
                               return;
                             }
                             newSelected.add(result.profileId);
@@ -805,7 +893,13 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                   checked={schedule?.isEnabled || false}
                   onChange={(e) => {
                     if (e.target.checked && !subscription?.canSchedule) {
-                      alert('Automatic scheduling is only available on the Pro plan ($7/month). Please upgrade to enable this feature.');
+                      showConfirm(
+                        'Pro Plan Required',
+                        'Automatic scheduling is only available on the Pro plan ($7/month).\n\nWould you like to upgrade?',
+                        () => router.push(`/pricing?accountId=${accountId}`),
+                        'info',
+                        'View Plans'
+                      );
                       return;
                     }
                     updateSchedule.mutate({
@@ -949,9 +1043,13 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                   <div>
                     <button
                       onClick={() => {
-                        if (confirm('Run cleanup now? This will delete all profiles matching your active rules.')) {
-                          manualRun.mutate();
-                        }
+                        showConfirm(
+                          'Run Cleanup Now',
+                          'This will delete all profiles matching your active rules.\n\nAre you sure you want to continue?',
+                          () => manualRun.mutate(),
+                          'warning',
+                          'Run Cleanup'
+                        );
                       }}
                       disabled={manualRun.isLoading || rules?.length === 0}
                       className="w-full sm:w-auto flex items-center justify-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -1031,6 +1129,30 @@ export default function Dashboard({ accountId }: { accountId: string }) {
         </div>
       )}
       
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+        title={alertModal.title}
+        message={alertModal.message}
+        variant={alertModal.variant as 'success' | 'error' | 'warning' | 'info'}
+      />
+      
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={() => {
+          confirmModal.onConfirm?.();
+          setConfirmModal({ ...confirmModal, isOpen: false });
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        variant={confirmModal.variant as 'danger' | 'warning' | 'info'}
+        confirmText={confirmModal.confirmText}
+        isLoading={confirmModal.isLoading}
+      />
+
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

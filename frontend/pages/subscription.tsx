@@ -3,8 +3,16 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import axios from 'axios';
+import { AlertModal, ConfirmModal } from '../components/Modal';
 
 const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
+
+interface AlertState {
+  isOpen: boolean;
+  title: string;
+  message: string;
+  variant: 'success' | 'error' | 'warning' | 'info';
+}
 
 export default function SubscriptionPage() {
   const router = useRouter();
@@ -13,6 +21,11 @@ export default function SubscriptionPage() {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showChangeTierConfirm, setShowChangeTierConfirm] = useState<string | null>(null);
   const [accountId, setAccountId] = useState<string | null>(null);
+  const [alertModal, setAlertModal] = useState<AlertState>({ isOpen: false, title: '', message: '', variant: 'info' });
+  
+  const showAlert = (title: string, message: string, variant: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertModal({ isOpen: true, title, message, variant });
+  };
 
   // Resolve accountId from URL or localStorage
   useEffect(() => {
@@ -47,10 +60,10 @@ export default function SubscriptionPage() {
         queryClient.invalidateQueries(['subscription', accountId]);
         refetch();
         setShowCancelConfirm(false);
-        alert('Your subscription will be canceled at the end of the current billing period.');
+        showAlert('Subscription Canceled', 'Your subscription will be canceled at the end of the current billing period.', 'success');
       },
       onError: (error: any) => {
-        alert(`Error: ${error.response?.data?.error || error.message}`);
+        showAlert('Error', error.response?.data?.error || error.message, 'error');
       },
     }
   );
@@ -63,10 +76,10 @@ export default function SubscriptionPage() {
         queryClient.invalidateQueries(['subscription', accountId]);
         refetch();
         setShowChangeTierConfirm(null);
-        alert('Subscription tier updated successfully!');
+        showAlert('Tier Updated', 'Subscription tier updated successfully!', 'success');
       },
       onError: (error: any) => {
-        alert(`Error: ${error.response?.data?.error || error.message}`);
+        showAlert('Error', error.response?.data?.error || error.message, 'error');
       },
     }
   );
@@ -78,10 +91,10 @@ export default function SubscriptionPage() {
       onSuccess: () => {
         queryClient.invalidateQueries(['subscription', accountId]);
         refetch();
-        alert('Subscription reactivated successfully!');
+        showAlert('Subscription Reactivated', 'Your subscription has been reactivated successfully!', 'success');
       },
       onError: (error: any) => {
-        alert(`Error: ${error.response?.data?.error || error.message}`);
+        showAlert('Error', error.response?.data?.error || error.message, 'error');
       },
     }
   );
@@ -391,6 +404,15 @@ export default function SubscriptionPage() {
             </div>
           )}
         </div>
+
+        {/* Alert Modal */}
+        <AlertModal
+          isOpen={alertModal.isOpen}
+          onClose={() => setAlertModal({ ...alertModal, isOpen: false })}
+          title={alertModal.title}
+          message={alertModal.message}
+          variant={alertModal.variant}
+        />
 
         {/* Footer */}
         <footer className="bg-white border-t border-gray-200 mt-16">
