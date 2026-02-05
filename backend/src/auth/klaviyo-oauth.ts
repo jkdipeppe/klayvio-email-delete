@@ -3,6 +3,7 @@ import axios from 'axios';
 
 const KLAVIYO_AUTH_URL = 'https://www.klaviyo.com/oauth/authorize';
 const KLAVIYO_TOKEN_URL = 'https://a.klaviyo.com/oauth/token';
+const KLAVIYO_REVOKE_URL = 'https://a.klaviyo.com/oauth/revoke';
 
 export interface TokenResponse {
   access_token: string;
@@ -91,5 +92,34 @@ export async function refreshAccessToken(refreshToken: string): Promise<TokenRes
   );
 
   return response.data;
+}
+
+// Revoke OAuth token (for user disconnect/uninstall)
+export async function revokeToken(refreshToken: string): Promise<boolean> {
+  try {
+    await axios.post(
+      KLAVIYO_REVOKE_URL,
+      new URLSearchParams({
+        token: refreshToken,
+        token_type_hint: 'refresh_token',
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        auth: {
+          username: process.env.KLAVIYO_CLIENT_ID!,
+          password: process.env.KLAVIYO_CLIENT_SECRET!,
+        },
+      }
+    );
+    console.log('OAuth token revoked successfully');
+    return true;
+  } catch (error: any) {
+    // Token revocation should not fail the disconnect flow
+    // The token might already be invalid/expired
+    console.error('Token revocation error (non-fatal):', error.response?.data || error.message);
+    return false;
+  }
 }
 

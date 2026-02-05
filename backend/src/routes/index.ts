@@ -5,7 +5,8 @@ import {
     generatePKCE,
     getAuthorizationUrl,
     exchangeCodeForTokens,
-    refreshAccessToken
+    refreshAccessToken,
+    revokeToken
 } from '../auth/klaviyo-oauth';
 import { KlaviyoClient } from '../services/klaviyo-client';
 import { ProfileScanner } from '../services/profile-scanner';
@@ -76,12 +77,21 @@ router.get('/auth/klaviyo', (req, res) => {
 
 // OAuth: Handle callback
 router.get('/auth/callback/klaviyo', async (req, res) => {
-    const { code, state, error } = req.query;
+    const { code, state, error, error_description } = req.query;
 
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
 
     if (error) {
-        return res.redirect(`${frontendUrl}/error?message=${encodeURIComponent(error as string)}`);
+        // Handle permission denied specifically
+        if (error === 'access_denied') {
+            const message = 'You denied the permissions required for Spam Profile Cleaner to work. ' +
+                'To use this app, you need to grant access to read profiles and submit deletion requests. ' +
+                'Please try connecting again if you want to use the app.';
+            return res.redirect(`${frontendUrl}/?error=permission_denied&message=${encodeURIComponent(message)}`);
+        }
+        // Handle other OAuth errors
+        const errorMsg = error_description || error;
+        return res.redirect(`${frontendUrl}/?error=oauth_error&message=${encodeURIComponent(errorMsg as string)}`);
     }
 
     const codeVerifier = pkceStore.get(state as string);
@@ -577,6 +587,181 @@ router.get('/api/schedule/:accountId/history', async (req, res) => {
     } catch (error: any) {
         res.status(500).json({ error: error.message });
     }
+});
+
+// ==================== Account Disconnect/Uninstall Endpoints ====================
+
+// Disconnect account - revokes OAuth token and cleans up data
+// Called when user clicks "Disconnect" in the app
+router.post('/api/disconnect/:accountId', async (req, res) => {
+    try {
+        const accountId = req.params.accountId;
+        console.log(`Disconnect request for account: ${accountId}`);
+
+        // Get account with tokens
+        const account = await prisma.account.findUnique({
+            where: { id: accountId },
+        });
+
+        if (!account) {
+            return res.status(404).json({ error: 'Account not found' });
+        }
+
+        // Attempt to revoke OAuth token with Klaviyo
+        let tokenRevoked = false;
+        if (account.refreshToken) {
+            try {
+                const decryptedRefreshToken = decrypt(account.refreshToken);
+                tokenRevoked = await revokeToken(decryptedRefreshToken);
+            } catch (err: any) {
+                console.error('Error decrypting/revoking token:', err.message);
+                // Continue with cleanup even if revocation fails
+            }
+        }
+
+        // Clean up account data using RLS context
+        await withAccountContext(prisma, accountId, async () => {
+            // Delete scheduled cleanup
+            await prisma.scheduledCleanup.deleteMany({
+                where: { accountId },
+            });
+
+            // Delete cleanup runs
+            await prisma.cleanupRun.deleteMany({
+                where: { accountId },
+            });
+
+            // Delete cleanup rules
+            await prisma.cleanupRule.deleteMany({
+                where: { accountId },
+            });
+
+            // Delete deletion logs
+            await prisma.deletionLog.deleteMany({
+                where: { accountId },
+            });
+
+            // Delete subscription (keep Stripe records, just unlink)
+            await prisma.subscription.deleteMany({
+                where: { accountId },
+            });
+
+            // Finally, delete the account
+            await prisma.account.delete({
+                where: { id: accountId },
+            });
+        });
+
+        console.log(`Account ${accountId} disconnected successfully. Token revoked: ${tokenRevoked}`);
+
+        res.json({
+            success: true,
+            message: 'Account disconnected successfully',
+            tokenRevoked,
+        });
+    } catch (error: any) {
+        console.error('Disconnect error:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Webhook handler for Klaviyo uninstall events
+// Klaviyo calls this when a user removes the integration from their Klaviyo account
+router.post('/webhooks/klaviyo/uninstall', async (req, res) => {
+    try {
+        console.log('Klaviyo uninstall webhook received:', JSON.stringify(req.body, null, 2));
+
+        // Verify webhook signature (if Klaviyo provides one)
+        // For now, we'll process the webhook payload
+        const { data } = req.body;
+
+        if (!data) {
+            console.warn('Webhook received without data payload');
+            return res.status(200).json({ received: true });
+        }
+
+        // Extract account identifier from webhook
+        // Klaviyo typically sends the account ID or integration ID
+        const klaviyoAccountId = data.attributes?.account_id ||
+            data.relationships?.account?.data?.id ||
+            data.id;
+
+        if (!klaviyoAccountId) {
+            console.warn('Could not extract account ID from webhook payload');
+            return res.status(200).json({ received: true });
+        }
+
+        console.log(`Processing uninstall for Klaviyo account: ${klaviyoAccountId}`);
+
+        // Find account by Klaviyo account ID
+        const account = await prisma.account.findUnique({
+            where: { klaviyoAccountId },
+        });
+
+        if (!account) {
+            console.log(`No account found for Klaviyo account ID: ${klaviyoAccountId}`);
+            return res.status(200).json({ received: true, message: 'Account not found' });
+        }
+
+        // Clean up account data
+        await withAccountContext(prisma, account.id, async () => {
+            // Delete scheduled cleanup
+            await prisma.scheduledCleanup.deleteMany({
+                where: { accountId: account.id },
+            });
+
+            // Delete cleanup runs
+            await prisma.cleanupRun.deleteMany({
+                where: { accountId: account.id },
+            });
+
+            // Delete cleanup rules
+            await prisma.cleanupRule.deleteMany({
+                where: { accountId: account.id },
+            });
+
+            // Delete deletion logs
+            await prisma.deletionLog.deleteMany({
+                where: { accountId: account.id },
+            });
+
+            // Delete subscription
+            await prisma.subscription.deleteMany({
+                where: { accountId: account.id },
+            });
+
+            // Finally, delete the account
+            await prisma.account.delete({
+                where: { id: account.id },
+            });
+        });
+
+        console.log(`Account ${account.id} removed via Klaviyo uninstall webhook`);
+
+        res.status(200).json({
+            received: true,
+            success: true,
+            message: 'Account removed successfully',
+        });
+    } catch (error: any) {
+        console.error('Klaviyo uninstall webhook error:', error);
+        // Always return 200 for webhooks to prevent retries
+        res.status(200).json({
+            received: true,
+            error: error.message,
+        });
+    }
+});
+
+// OAuth permission denied handler
+// Redirects users with clear messaging when they deny permissions
+router.get('/auth/klaviyo/denied', (req, res) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const message = 'You denied the permissions required for Spam Profile Cleaner to work. ' +
+        'To use this app, you need to grant access to read profiles and submit deletion requests. ' +
+        'Please try connecting again if you want to use the app.';
+
+    res.redirect(`${frontendUrl}/?error=permission_denied&message=${encodeURIComponent(message)}`);
 });
 
 export default router;
