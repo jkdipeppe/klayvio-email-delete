@@ -4,6 +4,7 @@ import Head from "next/head";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import axios from "axios";
 import { AlertModal, ConfirmModal } from "../components/Modal";
+import { getToken } from "@/utils/auth";
 
 const ACCOUNT_ID_KEY = "klaviyo_cleaner_account_id";
 
@@ -38,22 +39,35 @@ export default function SubscriptionPage() {
     setAlertModal({ isOpen: true, title, message, variant });
   };
 
-  // Resolve accountId from URL or localStorage
+  // Require login; resolve accountId from URL, /api/me, or localStorage
   useEffect(() => {
     if (!router.isReady) return;
-
-    if (urlAccountId && typeof urlAccountId === "string") {
-      setAccountId(urlAccountId);
-      localStorage.setItem(ACCOUNT_ID_KEY, urlAccountId);
-    } else {
-      const savedAccountId = localStorage.getItem(ACCOUNT_ID_KEY);
-      if (savedAccountId) {
-        setAccountId(savedAccountId);
-      } else {
-        // No accountId - redirect to home
-        router.push("/");
-      }
+    if (!getToken()) {
+      router.replace("/");
+      return;
     }
+    const resolve = async () => {
+      if (urlAccountId && typeof urlAccountId === "string") {
+        setAccountId(urlAccountId);
+        localStorage.setItem(ACCOUNT_ID_KEY, urlAccountId);
+        return;
+      }
+      try {
+        const res = await axios.get("/api/me");
+        const meId = res.data?.accountId;
+        if (meId) {
+          setAccountId(meId);
+          localStorage.setItem(ACCOUNT_ID_KEY, meId);
+          return;
+        }
+      } catch {
+        // 401 redirects via interceptor
+      }
+      const saved = localStorage.getItem(ACCOUNT_ID_KEY);
+      if (saved) setAccountId(saved);
+      else router.replace("/");
+    };
+    resolve();
   }, [router.isReady, urlAccountId, router]);
 
   // Fetch subscription status

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import express, { Router } from 'express';
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import {
@@ -8,6 +8,15 @@ import {
     refreshAccessToken,
     revokeToken
 } from '../auth/klaviyo-oauth';
+import {
+    getGoogleAuthUrl,
+    exchangeGoogleCodeForTokens,
+    getGoogleProfile,
+    generateState as generateGoogleState,
+} from '../auth/google-oauth';
+import { signToken, verifyToken } from '../auth/jwt';
+import { authMiddleware } from '../middleware/auth';
+import { AuthRequest } from '../middleware/auth';
 import { KlaviyoClient } from '../services/klaviyo-client';
 import { ProfileScanner } from '../services/profile-scanner';
 import { ScheduledCleanupService } from '../services/scheduled-cleanup';
@@ -32,47 +41,172 @@ const prisma = new PrismaClient({
 
 /**
  * Helper function to handle authentication errors gracefully
- * Returns 401 with a specific error code that frontend can detect
+ * Returns 401 with a specific error code that frontend can detect.
+ * KLAVIYO_RECONNECT = Klaviyo tokens invalid (e.g. decryption failed); user should reconnect Klaviyo only, not log out.
  */
 function handleAuthError(error: any, res: any) {
-    if (isAuthenticationRequiredError(error)) {
-        return res.status(401).json({
-            error: error.message || 'Authentication required',
-            code: 'AUTH_REQUIRED',
-            requiresReauth: true
-        });
-    }
-    return null; // Let caller handle other errors
+    if (!isAuthenticationRequiredError(error)) return null;
+    const msg = error.message || 'Authentication required';
+    const isKlaviyoReconnect = msg.includes('Decryption failed') || msg.includes('Klaviyo connection has expired');
+    return res.status(401).json({
+        error: msg,
+        code: isKlaviyoReconnect ? 'KLAVIYO_RECONNECT' : 'AUTH_REQUIRED',
+        requiresReauth: true,
+    });
 }
 
-// Debug endpoint to check environment variables (remove in production)
+// Debug endpoint – only available in development (never expose in production)
 router.get('/debug-env', (req, res) => {
+    if (process.env.NODE_ENV === 'production') {
+        return res.status(404).json({ error: 'Not found' });
+    }
     res.json({
         hasDatabaseUrl: !!process.env.DATABASE_URL,
-        databaseUrlPrefix: process.env.DATABASE_URL?.substring(0, 30) + '...',
-        databaseUrlLength: process.env.DATABASE_URL?.length || 0,
         nodeEnv: process.env.NODE_ENV,
         port: process.env.PORT,
     });
 });
 
-// Store PKCE codes temporarily (use Redis in production)
-const pkceStore = new Map<string, string>();
+const auth = authMiddleware(prisma);
 
-// OAuth: Start authorization
-router.get('/auth/klaviyo', (req, res) => {
+// Parse JWT on all requests (does not block)
+router.use(auth.parseAuth);
+
+// ----- Google OAuth (primary login) -----
+const googleStateStore = new Map<string, boolean>();
+// One-time codes for token exchange (avoids sending JWT in URL). Code -> { token, expiresAt }
+const CODE_EXPIRY_MS = 2 * 60 * 1000; // 2 minutes
+const loginCodeStore = new Map<string, { token: string; expiresAt: number }>();
+
+function createLoginCode(token: string): string {
+    const code = crypto.randomBytes(24).toString('base64url');
+    loginCodeStore.set(code, { token, expiresAt: Date.now() + CODE_EXPIRY_MS });
+    return code;
+}
+
+function consumeLoginCode(code: string): string | null {
+    const entry = loginCodeStore.get(code);
+    loginCodeStore.delete(code);
+    if (!entry || Date.now() > entry.expiresAt) return null;
+    return entry.token;
+}
+
+router.get('/auth/google', (req, res) => {
+    try {
+        const state = generateGoogleState();
+        googleStateStore.set(state, true);
+        const url = getGoogleAuthUrl(state);
+        res.redirect(url);
+    } catch (error: any) {
+        console.error('Google OAuth error:', error);
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+        res.redirect(`${frontendUrl}/?error=google_oauth&message=${encodeURIComponent(error.message || 'Login failed')}`);
+    }
+});
+
+router.get('/auth/callback/google', async (req, res) => {
+    const { code, state, error } = req.query;
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+
+    if (error) {
+        return res.redirect(`${frontendUrl}/?error=google_denied&message=${encodeURIComponent((error as string) || 'Access denied')}`);
+    }
+    if (!googleStateStore.has(state as string)) {
+        return res.redirect(`${frontendUrl}/?error=invalid_state`);
+    }
+    googleStateStore.delete(state as string);
+
+    try {
+        const tokens = await exchangeGoogleCodeForTokens(code as string);
+        const profile = await getGoogleProfile(tokens.access_token);
+        let user = await prisma.user.findUnique({ where: { googleId: profile.id } });
+        if (!user) {
+            user = await prisma.user.create({
+                data: {
+                    googleId: profile.id,
+                    email: profile.email,
+                    name: profile.name ?? null,
+                    picture: profile.picture ?? null,
+                },
+            });
+        } else {
+            user = await prisma.user.update({
+                where: { id: user.id },
+                data: { name: profile.name ?? null, picture: profile.picture ?? null },
+            });
+        }
+        const token = signToken({ userId: user.id, email: user.email });
+        // Redirect with one-time code instead of JWT so the token never appears in URL/history/referrer
+        const oneTimeCode = createLoginCode(token);
+        res.redirect(`${frontendUrl}/auth/callback?code=${encodeURIComponent(oneTimeCode)}`);
+    } catch (err: any) {
+        console.error('Google callback error:', err);
+        res.redirect(`${frontendUrl}/?error=google_callback&message=${encodeURIComponent(err.message || 'Login failed')}`);
+    }
+});
+
+// Exchange one-time login code for JWT (called by frontend after OAuth redirect)
+router.post('/auth/exchange-token', (req, res) => {
+    const code = typeof req.body?.code === 'string' ? req.body.code.trim() : null;
+    if (!code) {
+        return res.status(400).json({ error: 'Missing or invalid code', code: 'INVALID_CODE' });
+    }
+    const token = consumeLoginCode(code);
+    if (!token) {
+        return res.status(400).json({ error: 'Invalid or expired code. Please sign in again.', code: 'INVALID_CODE' });
+    }
+    res.json({ token });
+});
+
+// ----- Session: current user and linked Klaviyo account -----
+router.get('/api/me', auth.requireAuth, async (req: AuthRequest, res) => {
+    try {
+        const account = await prisma.account.findFirst({
+            where: { userId: req.userId! },
+            select: { id: true },
+        });
+        res.json({
+            user: req.user,
+            accountId: account?.id ?? null,
+        });
+    } catch (error: any) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// ----- Klaviyo OAuth (connect after login). Requires logged-in user. -----
+const pkceStore = new Map<string, string>();
+const klaviyoStateToUserId = new Map<string, string>();
+
+function startKlaviyoRedirect(req: AuthRequest, res: express.Response) {
     try {
         const { codeVerifier, codeChallenge } = generatePKCE();
         const state = crypto.randomUUID();
-
         pkceStore.set(state, codeVerifier);
-
+        klaviyoStateToUserId.set(state, req.userId!);
         const authUrl = getAuthorizationUrl(state, codeChallenge);
         res.redirect(authUrl);
     } catch (error: any) {
         console.error('OAuth initiation error:', error);
         res.status(500).json({ error: 'Failed to initiate OAuth flow', details: error.message });
     }
+}
+
+// GET with Bearer header (e.g. from fetch)
+router.get('/auth/klaviyo', auth.requireAuth, (req: AuthRequest, res) => startKlaviyoRedirect(req, res));
+
+// POST with token in body (no token in URL). Frontend submits a form so the browser can follow the redirect.
+router.post('/auth/klaviyo', (req: express.Request, res: express.Response) => {
+    const token = req.body?.token;
+    if (typeof token !== 'string') {
+        return res.status(400).json({ error: 'Missing token', code: 'AUTH_REQUIRED' });
+    }
+    const payload = verifyToken(token);
+    if (!payload) {
+        return res.status(401).json({ error: 'Invalid or expired session. Please sign in again.', code: 'AUTH_REQUIRED' });
+    }
+    (req as AuthRequest).userId = payload.userId;
+    return startKlaviyoRedirect(req as AuthRequest, res);
 });
 
 // OAuth: Handle callback
@@ -95,54 +229,48 @@ router.get('/auth/callback/klaviyo', async (req, res) => {
     }
 
     const codeVerifier = pkceStore.get(state as string);
+    const userId = klaviyoStateToUserId.get(state as string);
     if (!codeVerifier) {
         return res.redirect(`${frontendUrl}/error?message=Invalid state`);
     }
     pkceStore.delete(state as string);
+    klaviyoStateToUserId.delete(state as string);
 
     try {
         console.log('OAuth callback received, exchanging code for tokens...');
         const tokens = await exchangeCodeForTokens(code as string, codeVerifier);
         console.log('Tokens received successfully');
 
-        // Get account info to identify the Klaviyo account
         const client = new KlaviyoClient(tokens.access_token);
         console.log('Fetching account info...');
         const accountInfo = await client.getAccountInfo();
         const klaviyoAccountId = accountInfo?.id || `account-${Date.now()}`;
         console.log('Account ID:', klaviyoAccountId);
 
-        // Store tokens (encrypted)
-        console.log('Storing account in database...');
-
-        // For OAuth callback, we use upsert which handles both create and update
-        // Account creation is allowed without RLS context (see RLS policy)
-        // Account updates require RLS context, so we handle them separately
         let account = await prisma.account.findUnique({
             where: { klaviyoAccountId },
         });
 
+        const tokenData = {
+            accessToken: encrypt(tokens.access_token),
+            refreshToken: encrypt(tokens.refresh_token),
+            tokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+            ...(userId ? { userId } : {}),
+        };
+
         if (account) {
-            // Update existing account with RLS context
-            const accountId = account.id; // Capture ID for TypeScript
+            const accountId = account.id;
             account = await withAccountContext(prisma, accountId, async () => {
                 return await prisma.account.update({
                     where: { id: accountId },
-                    data: {
-                        accessToken: encrypt(tokens.access_token),
-                        refreshToken: encrypt(tokens.refresh_token),
-                        tokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
-                    },
+                    data: tokenData,
                 });
             });
         } else {
-            // Create new account - RLS policy allows creation without context during OAuth
             account = await prisma.account.create({
                 data: {
                     klaviyoAccountId,
-                    accessToken: encrypt(tokens.access_token),
-                    refreshToken: encrypt(tokens.refresh_token),
-                    tokenExpiresAt: new Date(Date.now() + tokens.expires_in * 1000),
+                    ...tokenData,
                 },
             });
         }
@@ -160,12 +288,10 @@ router.get('/auth/callback/klaviyo', async (req, res) => {
         if (existingSubscription && existingSubscription.status === 'ACTIVE') {
             // User has active subscription - go to dashboard
             redirectUrl = `${frontendUrl}/dashboard?accountId=${account.id}`;
-            console.log(`OAuth success! User has subscription, redirecting to dashboard: ${redirectUrl}`);
         } else {
             // No subscription - go to pricing page for tier selection
             // Pricing page will handle navigation based on tier selection from sessionStorage
             redirectUrl = `${frontendUrl}/pricing?accountId=${account.id}`;
-            console.log(`OAuth success! No subscription, redirecting to pricing: ${redirectUrl}`);
         }
 
         // Use 302 temporary redirect to ensure browser follows it
@@ -178,7 +304,7 @@ router.get('/auth/callback/klaviyo', async (req, res) => {
 });
 
 // Get cleanup rules
-router.get('/api/rules/:accountId', async (req, res) => {
+router.get('/api/rules/:accountId', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const accountId = req.params.accountId;
 
@@ -205,7 +331,7 @@ router.get('/api/rules/:accountId', async (req, res) => {
 });
 
 // Create cleanup rule
-router.post('/api/rules/:accountId', async (req, res) => {
+router.post('/api/rules/:accountId', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const accountId = req.params.accountId;
         const { type, pattern } = req.body;
@@ -252,21 +378,25 @@ router.post('/api/rules/:accountId', async (req, res) => {
 });
 
 // Delete cleanup rule
-router.delete('/api/rules/:ruleId', async (req, res) => {
+router.delete('/api/rules/:ruleId', auth.requireAuth, async (req: AuthRequest, res) => {
     try {
         const ruleId = req.params.ruleId;
 
-        // First get the rule to find the accountId
         const rule = await prisma.cleanupRule.findUnique({
             where: { id: ruleId },
             select: { accountId: true },
         });
-
         if (!rule) {
             return res.status(404).json({ error: 'Rule not found' });
         }
 
-        // Use RLS context to ensure user can only delete their own rules
+        const account = await prisma.account.findFirst({
+            where: { id: rule.accountId, userId: req.userId! },
+        });
+        if (!account) {
+            return res.status(403).json({ error: 'You do not have access to this rule.', code: 'FORBIDDEN' });
+        }
+
         await withAccountContext(prisma, rule.accountId, async () => {
             await prisma.cleanupRule.delete({
                 where: { id: ruleId },
@@ -280,7 +410,7 @@ router.delete('/api/rules/:ruleId', async (req, res) => {
 });
 
 // Preview scan (find matching profiles without deleting)
-router.get('/api/scan/:accountId/preview', async (req, res) => {
+router.get('/api/scan/:accountId/preview', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const account = await prisma.account.findUnique({
             where: { id: req.params.accountId },
@@ -305,7 +435,7 @@ router.get('/api/scan/:accountId/preview', async (req, res) => {
 });
 
 // Execute cleanup
-router.post('/api/scan/:accountId/execute', async (req, res) => {
+router.post('/api/scan/:accountId/execute', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const { profileIds } = req.body; // Optional: specific profiles to delete
 
@@ -351,7 +481,7 @@ router.post('/api/scan/:accountId/execute', async (req, res) => {
 });
 
 // Get deletion history
-router.get('/api/history/:accountId', async (req, res) => {
+router.get('/api/history/:accountId', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const accountId = req.params.accountId;
 
@@ -385,18 +515,8 @@ router.get('/api/history/:accountId', async (req, res) => {
 // MUST be defined BEFORE /api/schedule/:accountId to avoid route conflict
 router.post('/api/schedule/run', async (req, res) => {
     try {
-        // Protect with API key
         const apiKey = req.headers['x-api-key'] || req.headers['authorization']?.replace('Bearer ', '');
         const expectedKey = process.env.CRON_API_KEY;
-
-        // Log for debugging (don't log full keys in production)
-        console.log('Cron endpoint called - API key check:', {
-            hasApiKey: !!apiKey,
-            apiKeyLength: apiKey?.length || 0,
-            hasExpectedKey: !!expectedKey,
-            expectedKeyLength: expectedKey?.length || 0,
-            keysMatch: apiKey === expectedKey,
-        });
 
         if (!expectedKey) {
             console.error('CRON_API_KEY not set in environment variables');
@@ -404,11 +524,8 @@ router.post('/api/schedule/run', async (req, res) => {
         }
 
         if (!apiKey || apiKey !== expectedKey) {
-            console.warn('Unauthorized cron request - API key mismatch');
             return res.status(401).json({ error: 'Unauthorized' });
         }
-
-        console.log('Cron job started - processing due accounts...');
         const cleanupService = new ScheduledCleanupService(prisma);
         const results = await cleanupService.processDueAccounts();
 
@@ -434,7 +551,7 @@ router.post('/api/schedule/run', async (req, res) => {
 });
 
 // Get schedule configuration
-router.get('/api/schedule/:accountId', async (req, res) => {
+router.get('/api/schedule/:accountId', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const accountId = req.params.accountId;
 
@@ -471,7 +588,7 @@ router.get('/api/schedule/:accountId', async (req, res) => {
 });
 
 // Create or update schedule
-router.post('/api/schedule/:accountId', async (req, res) => {
+router.post('/api/schedule/:accountId', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const accountId = req.params.accountId;
         const { isEnabled, frequencyDays } = req.body;
@@ -534,7 +651,7 @@ router.post('/api/schedule/:accountId', async (req, res) => {
 });
 
 // Manually trigger cleanup for an account
-router.post('/api/schedule/:accountId/run', async (req, res) => {
+router.post('/api/schedule/:accountId/run', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const accountId = req.params.accountId;
 
@@ -561,7 +678,7 @@ router.post('/api/schedule/:accountId/run', async (req, res) => {
 });
 
 // Get cleanup run history
-router.get('/api/schedule/:accountId/history', async (req, res) => {
+router.get('/api/schedule/:accountId/history', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const accountId = req.params.accountId;
 
@@ -593,7 +710,7 @@ router.get('/api/schedule/:accountId/history', async (req, res) => {
 
 // Disconnect account - revokes OAuth token and cleans up data
 // Called when user clicks "Disconnect" in the app
-router.post('/api/disconnect/:accountId', async (req, res) => {
+router.post('/api/disconnect/:accountId', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const accountId = req.params.accountId;
         console.log(`Disconnect request for account: ${accountId}`);
@@ -666,17 +783,24 @@ router.post('/api/disconnect/:accountId', async (req, res) => {
 });
 
 // Webhook handler for Klaviyo uninstall events
-// Klaviyo calls this when a user removes the integration from their Klaviyo account
-router.post('/webhooks/klaviyo/uninstall', async (req, res) => {
+// Klaviyo calls this when a user removes the integration from their Klaviyo account.
+// URL must include the webhook secret: POST /webhooks/klaviyo/uninstall/:webhookSecret
+// Set KLAVIYO_WEBHOOK_SECRET in env and configure Klaviyo to use that full URL.
+router.post('/webhooks/klaviyo/uninstall/:webhookSecret?', async (req, res) => {
     try {
-        console.log('Klaviyo uninstall webhook received:', JSON.stringify(req.body, null, 2));
+        const expectedSecret = process.env.KLAVIYO_WEBHOOK_SECRET;
+        const providedSecret = req.params.webhookSecret;
+        if (expectedSecret) {
+            if (!providedSecret || providedSecret !== expectedSecret) {
+                return res.status(401).json({ error: 'Unauthorized' });
+            }
+        } else if (process.env.NODE_ENV === 'production') {
+            console.warn('KLAVIYO_WEBHOOK_SECRET not set; rejecting uninstall webhook in production');
+            return res.status(500).json({ error: 'Webhook not configured' });
+        }
 
-        // Verify webhook signature (if Klaviyo provides one)
-        // For now, we'll process the webhook payload
-        const { data } = req.body;
-
+        const { data } = req.body || {};
         if (!data) {
-            console.warn('Webhook received without data payload');
             return res.status(200).json({ received: true });
         }
 

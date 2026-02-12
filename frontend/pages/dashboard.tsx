@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Head from 'next/head';
+import axios from 'axios';
 import Dashboard from '@/components/Dashboard';
+import { getToken } from '@/utils/auth';
 
 const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
 
@@ -11,25 +13,40 @@ export default function DashboardPage() {
   const [accountId, setAccountId] = useState<string | null>(null);
 
   useEffect(() => {
-    // Wait for router to be ready before checking
-    if (!router.isReady) {
+    if (!router.isReady) return;
+
+    if (!getToken()) {
+      router.replace('/');
       return;
     }
-    
-    // Check URL first, then localStorage
-    if (urlAccountId && typeof urlAccountId === 'string') {
-      setAccountId(urlAccountId);
-      localStorage.setItem(ACCOUNT_ID_KEY, urlAccountId);
-    } else {
+
+    const resolveAccountId = async () => {
+      if (urlAccountId && typeof urlAccountId === 'string') {
+        setAccountId(urlAccountId);
+        localStorage.setItem(ACCOUNT_ID_KEY, urlAccountId);
+        return;
+      }
+      try {
+        const res = await axios.get('/api/me');
+        const meAccountId = res.data?.accountId;
+        if (meAccountId) {
+          setAccountId(meAccountId);
+          localStorage.setItem(ACCOUNT_ID_KEY, meAccountId);
+          return;
+        }
+      } catch {
+        // 401 will redirect to / via interceptor
+        return;
+      }
       const savedAccountId = localStorage.getItem(ACCOUNT_ID_KEY);
       if (savedAccountId) {
         setAccountId(savedAccountId);
       } else {
-        // No accountId found anywhere - redirect to home
-        console.log('No accountId found, redirecting to home');
-        router.push('/');
+        router.replace('/');
       }
-    }
+    };
+
+    resolveAccountId();
   }, [urlAccountId, router.isReady, router]);
 
   // Show loading while router is initializing or accountId is not available

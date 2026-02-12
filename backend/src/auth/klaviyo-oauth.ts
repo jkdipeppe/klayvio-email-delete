@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import axios from 'axios';
 
+// Per https://developers.klaviyo.com/en/docs/set_up_oauth: authorize on www, token/revoke on a.klaviyo.com (required since Mar 2025)
 const KLAVIYO_AUTH_URL = 'https://www.klaviyo.com/oauth/authorize';
 const KLAVIYO_TOKEN_URL = 'https://a.klaviyo.com/oauth/token';
 const KLAVIYO_REVOKE_URL = 'https://a.klaviyo.com/oauth/revoke';
@@ -32,6 +33,8 @@ export function getAuthorizationUrl(state: string, codeChallenge: string): strin
     throw new Error('KLAVIYO_REDIRECT_URI is not set in environment variables');
   }
 
+  // Least-permissive scopes per Klaviyo app listing requirements (create_a_public_oauth_app, set_up_oauth)
+  // accounts:read (required), profiles:read (list/read emails), data-privacy:* (submit deletion jobs)
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: process.env.KLAVIYO_CLIENT_ID,

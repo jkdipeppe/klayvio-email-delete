@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import { isReauthRequired, getReauthMessage } from '../utils/auth-errors';
+import { clearToken, getToken, submitKlaviyoConnectForm } from '../utils/auth';
 import { ConfirmModal, AlertModal } from './Modal';
 
 const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
@@ -116,6 +117,12 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       'danger',
       'Disconnect'
     );
+  };
+
+  // Log out from Google session (keeps Klaviyo link; next sign-in goes to dashboard if still connected)
+  const handleLogout = () => {
+    clearToken();
+    router.push('/');
   };
 
   // Sync subscription from Stripe when redirected after successful checkout
@@ -389,13 +396,23 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                 <p className="text-sm text-gray-500">Dashboard</p>
               </div>
             </div>
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4">
               <div className="hidden sm:flex items-center space-x-2 text-sm text-gray-600">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
                 <span>Secure Connection</span>
               </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 text-sm text-gray-600 hover:text-gray-900 transition-colors px-3 py-2 rounded-lg hover:bg-gray-100"
+                title="Log out (Google)"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span className="hidden sm:inline">Log out</span>
+              </button>
               <button
                 onClick={confirmDisconnect}
                 disabled={isDisconnecting}
@@ -1141,7 +1158,8 @@ export default function Dashboard({ accountId }: { accountId: string }) {
               <button
                 onClick={() => {
                   setShowReauthModal(false);
-                  window.location.href = '/auth/klaviyo';
+                  if (getToken()) submitKlaviyoConnectForm();
+                  else router.push('/');
                 }}
                 className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
               >

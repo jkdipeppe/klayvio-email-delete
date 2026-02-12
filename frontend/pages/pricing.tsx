@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import Head from 'next/head';
 import axios from 'axios';
 import { AlertModal } from '../components/Modal';
+import { getToken, submitKlaviyoConnectForm } from '@/utils/auth';
 
 const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
 
@@ -28,44 +29,50 @@ export default function PricingPage() {
   };
 
   useEffect(() => {
-    // Wait for router to be ready
     if (!router.isReady) return;
 
-    // Check for accountId from URL (OAuth callback) or localStorage
-    let resolvedAccountId: string | null = null;
-    
-    if (urlAccountId && typeof urlAccountId === 'string') {
-      resolvedAccountId = urlAccountId;
-      // Save to localStorage for future visits
-      localStorage.setItem(ACCOUNT_ID_KEY, resolvedAccountId);
-    } else {
-      // Check localStorage for saved accountId
-      resolvedAccountId = localStorage.getItem(ACCOUNT_ID_KEY);
-    }
-
-    if (resolvedAccountId) {
-      setAccountId(resolvedAccountId);
-      setIsAuthenticated(true);
-      fetchSubscriptionStatus(resolvedAccountId);
-      
-      // Check for tier selection from sessionStorage (set before OAuth) or URL param
-      const storedTier = sessionStorage.getItem('selectedTier');
-      const tierToUse = (selectedTier as string) || storedTier;
-      
-      if (tierToUse && typeof tierToUse === 'string') {
-        // Clear the stored tier immediately to prevent re-triggering
-        sessionStorage.removeItem('selectedTier');
-        // Wait for subscription status to load, then handle navigation
-        setTimeout(() => {
-          handlePostAuthTier(resolvedAccountId!, tierToUse);
-        }, 1000); // Give time for subscription status to load
-      } else {
-        setCheckingAuth(false);
-      }
-    } else {
+    if (!getToken()) {
       setIsAuthenticated(false);
       setCheckingAuth(false);
+      return;
     }
+
+    const resolveAccountId = async () => {
+      let resolvedAccountId: string | null = null;
+      if (urlAccountId && typeof urlAccountId === 'string') {
+        resolvedAccountId = urlAccountId;
+        localStorage.setItem(ACCOUNT_ID_KEY, resolvedAccountId);
+      }
+      if (!resolvedAccountId) {
+        try {
+          const res = await axios.get('/api/me');
+          resolvedAccountId = res.data?.accountId ?? null;
+          if (resolvedAccountId) localStorage.setItem(ACCOUNT_ID_KEY, resolvedAccountId);
+        } catch {
+          resolvedAccountId = localStorage.getItem(ACCOUNT_ID_KEY);
+        }
+      }
+
+      if (resolvedAccountId) {
+        setAccountId(resolvedAccountId);
+        setIsAuthenticated(true);
+        fetchSubscriptionStatus(resolvedAccountId);
+
+        const storedTier = sessionStorage.getItem('selectedTier');
+        const tierToUse = (selectedTier as string) || storedTier;
+        if (tierToUse && typeof tierToUse === 'string') {
+          sessionStorage.removeItem('selectedTier');
+          setTimeout(() => handlePostAuthTier(resolvedAccountId!, tierToUse), 1000);
+        } else {
+          setCheckingAuth(false);
+        }
+      } else {
+        setIsAuthenticated(false);
+        setCheckingAuth(false);
+      }
+    };
+
+    resolveAccountId();
   }, [router.isReady, urlAccountId, selectedTier]);
 
   const fetchSubscriptionStatus = async (accountId: string) => {
@@ -92,12 +99,12 @@ export default function PricingPage() {
   };
 
   const handleConnectKlaviyo = (tier?: 'FREE' | 'BASIC' | 'PRO') => {
-    // Store the selected tier in sessionStorage so we can use it after OAuth
-    if (tier) {
-      sessionStorage.setItem('selectedTier', tier);
+    if (tier) sessionStorage.setItem('selectedTier', tier);
+    if (!getToken()) {
+      window.location.href = '/auth/google';
+      return;
     }
-    // Start OAuth flow
-    window.location.href = '/auth/klaviyo';
+    submitKlaviyoConnectForm();
   };
 
   const handleSubscribe = async (tier: 'BASIC' | 'PRO', providedAccountId?: string) => {

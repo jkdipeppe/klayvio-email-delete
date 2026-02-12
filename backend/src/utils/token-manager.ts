@@ -64,12 +64,12 @@ export async function getValidAccessToken(
             await new Promise(resolve => setTimeout(resolve, 1000));
             continue; // Retry with fresh database read
           }
-          // If decryption failed, throw AuthenticationRequiredError
           if (error.message && error.message.includes('Decryption failed')) {
             throw new AuthenticationRequiredError('Your Klaviyo connection has expired. Please reconnect your account.');
           }
-          // If refresh token is invalid, also require re-authentication
-          if (error.message && (error.message.includes('invalid') || error.message.includes('expired'))) {
+          // Klaviyo returns 400 with { error: 'invalid_grant' } when app was uninstalled, token expired (90d), or revoked
+          const isInvalidGrant = error.response?.status === 400 && error.response?.data?.error === 'invalid_grant';
+          if (isInvalidGrant || (error.message && (error.message.includes('invalid') || error.message.includes('expired')))) {
             throw new AuthenticationRequiredError('Your Klaviyo connection has expired. Please reconnect your account.');
           }
           throw new Error(`Token refresh failed: ${error.message}. User may need to re-authenticate.`);

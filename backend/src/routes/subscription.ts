@@ -1,11 +1,12 @@
 import { Router } from 'express';
 import { PrismaClient, SubscriptionTier, SubscriptionStatus } from '@prisma/client';
 import Stripe from 'stripe';
+import { authMiddleware } from '../middleware/auth';
+import type { AuthRequest } from '../middleware/auth';
 import { withAccountContext } from '../utils/rls';
 import { getSubscriptionInfo } from '../utils/subscription-limits';
 
 const router = Router();
-// Configure Prisma to disable prepared statements for connection pooling compatibility
 const prisma = new PrismaClient({
     datasources: {
         db: {
@@ -25,8 +26,11 @@ const stripe = process.env.STRIPE_SECRET_KEY
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
 
+const auth = authMiddleware(prisma);
+router.use(auth.parseAuth);
+
 // Get subscription status
-router.get('/api/subscription/:accountId', async (req, res) => {
+router.get('/api/subscription/:accountId', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         const accountId = req.params.accountId;
 
@@ -68,7 +72,7 @@ router.get('/api/subscription/:accountId', async (req, res) => {
 });
 
 // Create Stripe checkout session
-router.post('/api/subscription/checkout', async (req, res) => {
+router.post('/api/subscription/checkout', auth.requireAuth, async (req: AuthRequest, res) => {
     try {
         if (!stripe) {
             return res.status(500).json({ error: 'Stripe not configured. Please set STRIPE_SECRET_KEY.' });
@@ -84,13 +88,11 @@ router.post('/api/subscription/checkout', async (req, res) => {
             return res.status(400).json({ error: 'tier must be BASIC or PRO' });
         }
 
-        // Verify account exists
-        const account = await prisma.account.findUnique({
-            where: { id: accountId },
+        const account = await prisma.account.findFirst({
+            where: { id: accountId, userId: req.userId! },
         });
-
         if (!account) {
-            return res.status(404).json({ error: 'Account not found' });
+            return res.status(403).json({ error: 'Account not found or access denied.', code: 'FORBIDDEN' });
         }
 
         // Get Stripe price ID from environment
@@ -147,8 +149,7 @@ router.post('/api/subscription/checkout', async (req, res) => {
 });
 
 // Sync subscription status from Stripe (fallback when webhooks aren't available, e.g., local dev)
-// This endpoint checks for active Stripe subscriptions and syncs them to the database
-router.post('/api/subscription/:accountId/sync', async (req, res) => {
+router.post('/api/subscription/:accountId/sync', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         if (!stripe) {
             return res.status(500).json({ error: 'Stripe not configured' });
@@ -401,7 +402,7 @@ router.post('/api/subscription/webhook', async (req, res) => {
 });
 
 // Cancel subscription
-router.post('/api/subscription/:accountId/cancel', async (req, res) => {
+router.post('/api/subscription/:accountId/cancel', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         if (!stripe) {
             return res.status(500).json({ error: 'Stripe not configured' });
@@ -443,7 +444,7 @@ router.post('/api/subscription/:accountId/cancel', async (req, res) => {
 });
 
 // Change subscription tier (upgrade/downgrade)
-router.post('/api/subscription/:accountId/change-tier', async (req, res) => {
+router.post('/api/subscription/:accountId/change-tier', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         if (!stripe) {
             return res.status(500).json({ error: 'Stripe not configured' });
@@ -517,7 +518,7 @@ router.post('/api/subscription/:accountId/change-tier', async (req, res) => {
 });
 
 // Reactivate canceled subscription
-router.post('/api/subscription/:accountId/reactivate', async (req, res) => {
+router.post('/api/subscription/:accountId/reactivate', auth.requireAuth, auth.requireAccountOwnership, async (req, res) => {
     try {
         if (!stripe) {
             return res.status(500).json({ error: 'Stripe not configured' });

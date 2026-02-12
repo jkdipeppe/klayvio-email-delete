@@ -5,7 +5,20 @@
 Create a `.env` file in the backend directory with the following variables:
 
 ```env
-# Klaviyo OAuth
+# Google OAuth (primary login – required for "Sign in with Google")
+# Create credentials at https://console.cloud.google.com/apis/credentials (OAuth 2.0 Client ID, Web application)
+# Add authorized redirect URI: http://localhost:3000/auth/callback/google (or your backend URL + /auth/callback/google)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/auth/callback/google
+
+# JWT (sessions after Google login)
+# Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+JWT_SECRET=your_random_jwt_secret
+# Optional: default is 7d
+# JWT_EXPIRES_IN=7d
+
+# Klaviyo OAuth (connect Klaviyo after logging in)
 KLAVIYO_CLIENT_ID=your_client_id_here
 KLAVIYO_CLIENT_SECRET=your_client_secret_here
 KLAVIYO_REDIRECT_URI=http://localhost:3000/auth/callback/klaviyo

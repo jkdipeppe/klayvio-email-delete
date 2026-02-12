@@ -7,20 +7,35 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(uuid())
+  googleId  String   @unique
+  email     String
+  name      String?
+  picture   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts Account[]
+}
+
 model Account {
-  id              String   @id @default(uuid())
-  klaviyoAccountId String  @unique
-  accessToken     String   // Encrypted
-  refreshToken    String   // Encrypted
-  tokenExpiresAt  DateTime
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  
-  rules           CleanupRule[]
-  deletionLogs    DeletionLog[]
+  id               String   @id @default(uuid())
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  klaviyoAccountId String   @unique
+  accessToken      String   // Encrypted
+  refreshToken     String   // Encrypted
+  tokenExpiresAt   DateTime
+  profileAttributesThreshold Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  rules            CleanupRule[]
+  deletionLogs     DeletionLog[]
   scheduledCleanup ScheduledCleanup?
-  cleanupRuns     CleanupRun[]
-  subscription    Subscription?
+  cleanupRuns      CleanupRun[]
+  subscription     Subscription?
 }
 
 model CleanupRule {
