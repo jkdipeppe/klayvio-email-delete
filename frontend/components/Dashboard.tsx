@@ -67,8 +67,6 @@ export default function Dashboard({ accountId }: { accountId: string }) {
     title: "",
     message: "",
   });
-  const [isDisconnecting, setIsDisconnecting] = useState(false);
-
   // Helper to show alert modal
   const showAlert = (
     title: string,
@@ -113,36 +111,6 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       localStorage.setItem(ACCOUNT_ID_KEY, accountId);
     }
   }, [accountId]);
-
-  // Disconnect function - revokes OAuth token and removes account
-  const handleDisconnect = async () => {
-    setIsDisconnecting(true);
-    try {
-      // Call backend to revoke OAuth token and clean up data
-      await axios.post(`/api/disconnect/${accountId}`);
-      console.log("Account disconnected successfully");
-    } catch (error: any) {
-      console.error("Disconnect error:", error);
-      // Continue with local cleanup even if backend fails
-    } finally {
-      // Clear local storage and redirect
-      localStorage.removeItem(ACCOUNT_ID_KEY);
-      sessionStorage.removeItem("selectedTier");
-      setIsDisconnecting(false);
-      router.push("/");
-    }
-  };
-
-  // Show disconnect confirmation
-  const confirmDisconnect = () => {
-    showConfirm(
-      "Disconnect from Klaviyo",
-      "THIS WILL CANCEL YOUR SUBSCRIPTION. This will also revoke access to your Klaviyo account and delete all your rules, schedules, and history. You can reconnect anytime by signing in again and re-sbuscribing. Are you sure you want to disconnect?",
-      handleDisconnect,
-      "danger",
-      "Disconnect",
-    );
-  };
 
   // Log out from Google session (keeps Klaviyo link; next sign-in goes to dashboard if still connected)
   const handleLogout = () => {
@@ -523,51 +491,6 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                   />
                 </svg>
                 <span className="hidden sm:inline">Log out</span>
-              </button>
-              <button
-                onClick={confirmDisconnect}
-                disabled={isDisconnecting}
-                className="flex items-center space-x-2 text-sm text-gray-600 hover:text-red-600 transition-colors px-3 py-2 rounded-lg hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Disconnect from Klaviyo"
-              >
-                {isDisconnecting ? (
-                  <svg
-                    className="w-4 h-4 animate-spin"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                ) : (
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                    />
-                  </svg>
-                )}
-                <span className="hidden sm:inline">
-                  {isDisconnecting ? "Disconnecting..." : "Disconnect"}
-                </span>
               </button>
             </div>
           </div>

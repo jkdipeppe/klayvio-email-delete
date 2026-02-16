@@ -23,6 +23,8 @@ export default function SubscriptionPage() {
   const [showChangeTierConfirm, setShowChangeTierConfirm] = useState<
     string | null
   >(null);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
+  const [isDisconnecting, setIsDisconnecting] = useState(false);
   const [accountId, setAccountId] = useState<string | null>(null);
   const [alertModal, setAlertModal] = useState<AlertState>({
     isOpen: false,
@@ -129,6 +131,22 @@ export default function SubscriptionPage() {
       },
     },
   );
+
+  // Disconnect from Klaviyo & cancel subscription - revokes OAuth and deletes account data
+  const handleDisconnect = async () => {
+    setIsDisconnecting(true);
+    try {
+      await axios.post(`/api/disconnect/${accountId}`);
+    } catch (error: any) {
+      console.error("Disconnect error:", error);
+    } finally {
+      localStorage.removeItem(ACCOUNT_ID_KEY);
+      sessionStorage.removeItem("selectedTier");
+      setIsDisconnecting(false);
+      setShowDisconnectConfirm(false);
+      router.push("/");
+    }
+  };
 
   // Reactivate subscription mutation
   const reactivateSubscription = useMutation(
@@ -378,6 +396,65 @@ export default function SubscriptionPage() {
                 </div>
               </>
             )}
+
+            {/* Disconnect & Cancel Subscription - available for all (with or without subscription) */}
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Disconnect from Klaviyo
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Permanently disconnect this app from your Klaviyo account. This
+                will cancel your subscription (if any), revoke access, and
+                delete all rules, schedules, and history. You can reconnect
+                anytime by signing in again.
+              </p>
+              <button
+                onClick={() => setShowDisconnectConfirm(true)}
+                disabled={isDisconnecting}
+                className="flex items-center space-x-2 text-sm text-gray-600 hover:text-red-600 transition-colors px-4 py-2 rounded-lg border border-gray-300 hover:border-red-300 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDisconnecting ? (
+                  <svg
+                    className="w-4 h-4 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                )}
+                <span>
+                  {isDisconnecting
+                    ? "Disconnecting..."
+                    : "Disconnect & Cancel Subscription"}
+                </span>
+              </button>
+            </div>
           </div>
 
           {/* Plan Comparison */}
@@ -575,6 +652,39 @@ export default function SubscriptionPage() {
                     className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 transition-colors"
                   >
                     {changeTier.isLoading ? "Processing..." : "Confirm Change"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Disconnect Confirmation Modal */}
+          {showDisconnectConfirm && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">
+                  Disconnect from Klaviyo & Cancel Subscription?
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  This will cancel your subscription (if any), revoke access to
+                  your Klaviyo account, and delete all your rules, schedules,
+                  and history. You can reconnect anytime by signing in again and
+                  re-subscribing. Are you sure?
+                </p>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => setShowDisconnectConfirm(false)}
+                    disabled={isDisconnecting}
+                    className="flex-1 bg-gray-200 text-gray-800 py-2 px-4 rounded-lg font-semibold hover:bg-gray-300 disabled:opacity-50 transition-colors"
+                  >
+                    Keep Connected
+                  </button>
+                  <button
+                    onClick={handleDisconnect}
+                    disabled={isDisconnecting}
+                    className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg font-semibold hover:bg-red-700 disabled:opacity-50 transition-colors"
+                  >
+                    {isDisconnecting ? "Disconnecting..." : "Disconnect"}
                   </button>
                 </div>
               </div>

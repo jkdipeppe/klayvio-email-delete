@@ -15,13 +15,18 @@ export function authMiddleware(prisma: PrismaClient) {
     if (!token) return next();
     const payload = verifyToken(token);
     if (!payload) return next();
-    const user = await prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { id: true, email: true, name: true, picture: true },
-    });
-    if (user) {
-      req.userId = user.id;
-      req.user = user;
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        select: { id: true, email: true, name: true, picture: true },
+      });
+      if (user) {
+        req.userId = user.id;
+        req.user = user;
+      }
+    } catch (err: any) {
+      // Database unreachable (e.g. Supabase paused, network issue) - don't crash the server
+      console.error('Auth: could not look up user (database error):', err?.message || err);
     }
     next();
   }
