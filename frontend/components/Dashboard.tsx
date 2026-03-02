@@ -8,7 +8,7 @@ import { ConfirmModal, AlertModal } from "./Modal";
 
 const ACCOUNT_ID_KEY = "klaviyo_cleaner_account_id";
 
-type RuleType = "PREFIX" | "SUFFIX" | "DOMAIN" | "CONTAINS";
+type RuleType = "PREFIX" | "SUFFIX" | "DOMAIN" | "CONTAINS" | "NAME_CONTAINS";
 
 interface Rule {
   id: string;
@@ -738,6 +738,12 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                 </span>
                 <span>Email contains (e.g., "test")</span>
               </div>
+              <div className="flex items-center">
+                <span className="font-semibold text-gray-900 mr-2">
+                  NAME_CONTAINS:
+                </span>
+                <span>First or last name contains (e.g., "Test" or "User")</span>
+              </div>
             </div>
           </div>
 
@@ -753,6 +759,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
               <option value="SUFFIX">Email ends with</option>
               <option value="DOMAIN">Domain equals</option>
               <option value="CONTAINS">Email contains</option>
+              <option value="NAME_CONTAINS">Profile name contains</option>
             </select>
             <input
               type="text"
@@ -760,7 +767,11 @@ export default function Dashboard({ accountId }: { accountId: string }) {
               onChange={(e) =>
                 setNewRule({ ...newRule, pattern: e.target.value })
               }
-              placeholder="e.g., noreply or @tempmail.com"
+              placeholder={
+                newRule.type === "NAME_CONTAINS"
+                  ? "e.g., Test or John"
+                  : "e.g., noreply or @tempmail.com"
+              }
               className="border border-gray-300 rounded-lg px-4 py-2.5 flex-1 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
             />
             {ruleLimits.canCreateMore === false && (

@@ -7,6 +7,12 @@ interface CleanupRule {
   pattern: string;
 }
 
+interface ProfileAttributes {
+  email?: string;
+  first_name?: string | null;
+  last_name?: string | null;
+}
+
 export interface ScanResult {
   email: string;
   profileId: string;
@@ -22,38 +28,48 @@ export class ProfileScanner {
     this.prisma = prisma;
   }
 
-  // Check if email matches any rule
-  matchesRule(email: string, rules: CleanupRule[]): CleanupRule | null {
+  // Build full name from first_name + last_name for matching
+  private getFullName(attrs: ProfileAttributes): string {
+    const first = (attrs.first_name ?? '').trim();
+    const last = (attrs.last_name ?? '').trim();
+    return [first, last].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  // Check if profile matches any rule (email and optional name attributes)
+  matchesRule(
+    email: string,
+    rules: CleanupRule[],
+    profileAttrs?: ProfileAttributes
+  ): CleanupRule | null {
     const emailLower = email.toLowerCase();
-    
+
     for (const rule of rules) {
       const patternLower = rule.pattern.toLowerCase();
-      
+
       switch (rule.type) {
         case 'PREFIX':
-          if (emailLower.startsWith(patternLower)) {
-            return rule;
-          }
+          if (emailLower.startsWith(patternLower)) return rule;
           break;
         case 'SUFFIX':
-          if (emailLower.endsWith(patternLower)) {
-            return rule;
-          }
+          if (emailLower.endsWith(patternLower)) return rule;
           break;
-        case 'DOMAIN':
+        case 'DOMAIN': {
           const domain = emailLower.split('@')[1];
-          if (domain === patternLower || domain?.endsWith(`.${patternLower}`)) {
-            return rule;
-          }
+          if (domain === patternLower || domain?.endsWith(`.${patternLower}`)) return rule;
           break;
+        }
         case 'CONTAINS':
-          if (emailLower.includes(patternLower)) {
-            return rule;
+          if (emailLower.includes(patternLower)) return rule;
+          break;
+        case 'NAME_CONTAINS':
+          if (profileAttrs) {
+            const fullName = this.getFullName(profileAttrs);
+            if (fullName && fullName.includes(patternLower)) return rule;
           }
           break;
       }
     }
-    
+
     return null;
   }
 
@@ -78,7 +94,12 @@ export class ProfileScanner {
       const email = profile.attributes?.email;
       if (!email) continue;
 
-      const matchedRule = this.matchesRule(email, rules);
+      const attrs: ProfileAttributes = {
+        email: profile.attributes?.email,
+        first_name: profile.attributes?.first_name ?? null,
+        last_name: profile.attributes?.last_name ?? null,
+      };
+      const matchedRule = this.matchesRule(email, rules, attrs);
       if (matchedRule) {
         matches.push({
           email,

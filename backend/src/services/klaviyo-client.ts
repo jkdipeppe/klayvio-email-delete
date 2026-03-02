@@ -53,7 +53,7 @@ export class KlaviyoClient {
           // First request - add params
           response = await this.client.get(nextUrl, {
             params: {
-              'fields[profile]': 'email,created,updated',
+              'fields[profile]': 'email,first_name,last_name,created,updated',
               'page[size]': 100,
             },
           });

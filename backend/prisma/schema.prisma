@@ -55,6 +55,7 @@ enum RuleType {
   SUFFIX
   CONTAINS
   DOMAIN
+  NAME_CONTAINS
 }
 
 model DeletionLog {
