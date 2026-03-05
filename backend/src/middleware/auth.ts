@@ -49,7 +49,14 @@ export function authMiddleware(prisma: PrismaClient) {
       where: { id: accountId, userId: req.userId },
     });
     if (!account) {
-      return res.status(403).json({ error: 'You do not have access to this Klaviyo account.', code: 'FORBIDDEN' });
+      // Check if the account exists at all (vs. just belonging to a different user)
+      const accountExists = await prisma.account.findUnique({ where: { id: accountId }, select: { id: true } });
+      if (accountExists) {
+        // Account exists but doesn't belong to this user
+        return res.status(403).json({ error: 'You do not have access to this Klaviyo account.', code: 'FORBIDDEN' });
+      }
+      // Account doesn't exist at all — likely disconnected or token expired; prompt reconnect
+      return res.status(401).json({ error: 'Your Klaviyo connection was not found. Please reconnect your account.', code: 'KLAVIYO_RECONNECT', requiresReauth: true });
     }
     next();
   }
