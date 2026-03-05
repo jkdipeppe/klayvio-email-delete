@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "react-query";
 import { useRouter } from "next/router";
 import axios from "axios";
@@ -188,6 +188,16 @@ export default function Dashboard({ accountId }: { accountId: string }) {
   );
 
   const rules = rulesData?.rules || rulesData || []; // Handle both old and new response format
+
+  // Auto-trigger preview scan on initial load if rules already exist
+  const autoScanTriggered = useRef(false);
+  useEffect(() => {
+    if (!rulesLoading && rules && rules.length > 0 && !autoScanTriggered.current) {
+      autoScanTriggered.current = true;
+      previewScan.mutate();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rulesLoading, rules]);
 
   // Determine max rules based on subscription tier: FREE=1, BASIC=5, PRO=100
   const getMaxRulesForTier = (tier: string | null | undefined) => {
