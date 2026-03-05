@@ -16,9 +16,9 @@ export default function Home() {
   useEffect(() => {
     if (!router.isReady) return;
 
-    const { error, message, accountId } = router.query;
+    const { error, message, accountId, connect_klaviyo } = router.query;
 
-    if ((error === 'permission_denied' || error === 'oauth_error') && message) {
+    if ((error === 'permission_denied' || error === 'oauth_error' || error === 'session_expired') && message) {
       setErrorMessage(decodeURIComponent(message as string));
       router.replace('/', undefined, { shallow: true });
       setCheckingAuth(false);
@@ -34,6 +34,11 @@ export default function Home() {
     const token = getToken();
     if (!token) {
       setCheckingAuth(false);
+      // If redirected from /auth/klaviyo without a session, show a prompt
+      if (connect_klaviyo === '1') {
+        router.replace('/', undefined, { shallow: true });
+        setErrorMessage('Please sign in first to connect your Klaviyo account.');
+      }
       return;
     }
 
@@ -47,6 +52,13 @@ export default function Home() {
           return;
         }
         setIsLoggedIn(true);
+        // If redirected from /auth/klaviyo and the user is logged in but not yet connected,
+        // automatically kick off the Klaviyo OAuth flow
+        if (connect_klaviyo === '1') {
+          router.replace('/', undefined, { shallow: true });
+          setConnectingKlaviyo(true);
+          submitKlaviyoConnectForm();
+        }
       })
       .catch(() => {
         setIsLoggedIn(false);

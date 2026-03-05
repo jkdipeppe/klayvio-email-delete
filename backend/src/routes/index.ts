@@ -192,18 +192,33 @@ function startKlaviyoRedirect(req: AuthRequest, res: express.Response) {
     }
 }
 
-// GET with Bearer header (e.g. from fetch)
-router.get('/auth/klaviyo', auth.requireAuth, (req: AuthRequest, res) => startKlaviyoRedirect(req, res));
+// GET /auth/klaviyo — handles two cases:
+//   1. If the user is already authenticated (Bearer token in header), kick off the OAuth flow immediately.
+//   2. If the user is not authenticated (browser visit, no header token), redirect them to the home page
+//      so they can sign in and then connect Klaviyo — instead of showing a raw JSON error.
+router.get('/auth/klaviyo', (req: AuthRequest, res: express.Response) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    // If no userId was resolved by parseAuth, the user is not logged in.
+    // Redirect to home with a flag so the frontend can prompt them to sign in.
+    if (!req.userId) {
+        return res.redirect(`${frontendUrl}/?connect_klaviyo=1`);
+    }
+    // User is authenticated — start the Klaviyo OAuth flow immediately.
+    return startKlaviyoRedirect(req, res);
+});
 
 // POST with token in body (no token in URL). Frontend submits a form so the browser can follow the redirect.
 router.post('/auth/klaviyo', (req: express.Request, res: express.Response) => {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
     const token = req.body?.token;
     if (typeof token !== 'string') {
-        return res.status(400).json({ error: 'Missing token', code: 'AUTH_REQUIRED' });
+        // Missing token — redirect to home page gracefully instead of raw JSON error
+        return res.redirect(`${frontendUrl}/?connect_klaviyo=1`);
     }
     const payload = verifyToken(token);
     if (!payload) {
-        return res.status(401).json({ error: 'Invalid or expired session. Please sign in again.', code: 'AUTH_REQUIRED' });
+        // Invalid/expired session — redirect to home so user can sign in again
+        return res.redirect(`${frontendUrl}/?error=session_expired&message=${encodeURIComponent('Your session has expired. Please sign in again.')}`);
     }
     (req as AuthRequest).userId = payload.userId;
     return startKlaviyoRedirect(req as AuthRequest, res);
