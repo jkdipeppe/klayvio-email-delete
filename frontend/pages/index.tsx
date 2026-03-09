@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
-import Head from 'next/head';
-import axios from 'axios';
-import { getToken, submitKlaviyoConnectForm } from '@/utils/auth';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/router";
+import Head from "next/head";
+import axios from "axios";
+import { getToken, submitKlaviyoConnectForm } from "@/utils/auth";
 
-const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
+const ACCOUNT_ID_KEY = "klaviyo_cleaner_account_id";
 
 export default function Home() {
   const router = useRouter();
@@ -18,14 +18,19 @@ export default function Home() {
 
     const { error, message, accountId, connect_klaviyo } = router.query;
 
-    if ((error === 'permission_denied' || error === 'oauth_error' || error === 'session_expired') && message) {
+    if (
+      (error === "permission_denied" ||
+        error === "oauth_error" ||
+        error === "session_expired") &&
+      message
+    ) {
       setErrorMessage(decodeURIComponent(message as string));
-      router.replace('/', undefined, { shallow: true });
+      router.replace("/", undefined, { shallow: true });
       setCheckingAuth(false);
       return;
     }
 
-    if (accountId && typeof accountId === 'string') {
+    if (accountId && typeof accountId === "string") {
       localStorage.setItem(ACCOUNT_ID_KEY, accountId);
       router.push(`/dashboard?accountId=${accountId}`);
       return;
@@ -35,15 +40,17 @@ export default function Home() {
     if (!token) {
       setCheckingAuth(false);
       // If redirected from /auth/klaviyo without a session, show a prompt
-      if (connect_klaviyo === '1') {
-        router.replace('/', undefined, { shallow: true });
-        setErrorMessage('Please sign in first to connect your Klaviyo account.');
+      if (connect_klaviyo === "1") {
+        router.replace("/", undefined, { shallow: true });
+        setErrorMessage(
+          "Please sign in first to connect your Klaviyo account.",
+        );
       }
       return;
     }
 
     axios
-      .get('/api/me')
+      .get("/api/me")
       .then((res) => {
         const { accountId: meAccountId } = res.data;
         if (meAccountId) {
@@ -54,8 +61,8 @@ export default function Home() {
         setIsLoggedIn(true);
         // If redirected from /auth/klaviyo and the user is logged in but not yet connected,
         // automatically kick off the Klaviyo OAuth flow
-        if (connect_klaviyo === '1') {
-          router.replace('/', undefined, { shallow: true });
+        if (connect_klaviyo === "1") {
+          router.replace("/", undefined, { shallow: true });
           setConnectingKlaviyo(true);
           submitKlaviyoConnectForm();
         }
@@ -69,13 +76,13 @@ export default function Home() {
   }, [router.isReady, router.query, router]);
 
   const handleSignInWithGoogle = () => {
-    window.location.href = '/auth/google';
+    window.location.href = "/auth/google";
   };
 
   const handleConnectKlaviyo = () => {
     const token = getToken();
     if (!token) {
-      window.location.href = '/auth/google';
+      window.location.href = "/auth/google";
       return;
     }
     setConnectingKlaviyo(true);
@@ -97,7 +104,10 @@ export default function Home() {
     <>
       <Head>
         <title>Klaviyo Spam Profile Cleaner - Automate Profile Removal</title>
-        <meta name="description" content="Automatically identify and remove spam profiles from your Klaviyo account using customizable email patterns, prefixes, and suffixes." />
+        <meta
+          name="description"
+          content="Automatically identify and remove spam profiles from your Klaviyo account using customizable email patterns, prefixes, and suffixes."
+        />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/png" href="/SpamProfileCleanerIcon.png" />
         <link rel="apple-touch-icon" href="/SpamProfileCleanerIcon.png" />
@@ -110,11 +120,23 @@ export default function Home() {
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-5 h-5 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
-                <span className="text-xl font-bold text-gray-900">Klaviyo Cleaner</span>
+                <span className="text-xl font-bold text-gray-900">
+                  Klaviyo Cleaner
+                </span>
               </div>
             </div>
           </div>
@@ -126,12 +148,22 @@ export default function Home() {
             <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg">
               <div className="flex">
                 <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  <svg
+                    className="h-5 w-5 text-amber-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                 </div>
                 <div className="ml-3">
-                  <h3 className="text-sm font-medium text-amber-800">Permission Required</h3>
+                  <h3 className="text-sm font-medium text-amber-800">
+                    Permission Required
+                  </h3>
                   <div className="mt-2 text-sm text-amber-700">
                     <p>{errorMessage}</p>
                   </div>
@@ -153,8 +185,18 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
           <div className="text-center mb-16">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-indigo-100 rounded-full mb-6">
-              <svg className="w-10 h-10 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              <svg
+                className="w-10 h-10 text-indigo-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
               </svg>
             </div>
             <h1 className="text-5xl md:text-6xl font-bold text-gray-900 mb-6">
@@ -162,42 +204,67 @@ export default function Home() {
               <span className="block text-indigo-600 mt-2">Automatically</span>
             </h1>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8 leading-relaxed">
-              Clean up your Klaviyo account by automatically identifying and removing spam profiles 
-              based on customizable email patterns, prefixes, and suffixes.
+              Clean up your Klaviyo account by automatically identifying and
+              removing spam profiles based on customizable email patterns,
+              prefixes, and suffixes.
             </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            {isLoggedIn ? (
-              <button
-                onClick={handleConnectKlaviyo}
-                disabled={connectingKlaviyo}
-                className="inline-flex items-center justify-center px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-lg shadow-lg hover:bg-indigo-700 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-70"
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              {isLoggedIn ? (
+                <button
+                  onClick={handleConnectKlaviyo}
+                  disabled={connectingKlaviyo}
+                  className="inline-flex items-center justify-center px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-lg shadow-lg hover:bg-indigo-700 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-70"
+                >
+                  <svg
+                    className="w-5 h-5 mr-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                  {connectingKlaviyo
+                    ? "Redirecting..."
+                    : "Connect with Klaviyo"}
+                </button>
+              ) : (
+                <button
+                  onClick={handleSignInWithGoogle}
+                  className="inline-flex items-center justify-center px-8 py-4 bg-white text-gray-800 text-lg font-semibold rounded-lg shadow-lg hover:bg-gray-50 transition-all border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                    />
+                  </svg>
+                  Sign in with Google
+                </button>
+              )}
+              <a
+                href="/pricing"
+                className="inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-600 text-lg font-semibold rounded-lg shadow-lg hover:bg-gray-50 transition-all border-2 border-indigo-600"
               >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                {connectingKlaviyo ? 'Redirecting...' : 'Connect with Klaviyo'}
-              </button>
-            ) : (
-              <button
-                onClick={handleSignInWithGoogle}
-                className="inline-flex items-center justify-center px-8 py-4 bg-white text-gray-800 text-lg font-semibold rounded-lg shadow-lg hover:bg-gray-50 transition-all border-2 border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
-              >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                </svg>
-                Sign in with Google
-              </button>
-            )}
-            <a
-              href="/pricing"
-              className="inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-600 text-lg font-semibold rounded-lg shadow-lg hover:bg-gray-50 transition-all border-2 border-indigo-600"
-            >
-              View Pricing
-            </a>
-          </div>
+                View Pricing
+              </a>
+            </div>
           </div>
 
           {/* Features Grid */}
@@ -205,31 +272,58 @@ export default function Home() {
             {/* Feature 1 */}
             <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
               <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                <svg
+                  className="w-6 h-6 text-indigo-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+                  />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Email Prefix Matching</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                Email Prefix Matching
+              </h3>
               <p className="text-gray-600 leading-relaxed">
-                Set custom email prefixes (like "noreply", "test", "spam") to automatically identify and remove matching profiles.
+                Set custom email prefixes (like "noreply", "test", "spam") to
+                automatically identify and remove matching profiles.
               </p>
             </div>
 
             {/* Feature 2 */}
             <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
               <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
-                <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                <svg
+                  className="w-6 h-6 text-indigo-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
                 </svg>
               </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-3">Email Suffix Matching</h3>
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                Email Suffix Matching
+              </h3>
               <p className="text-gray-600 leading-relaxed">
-                Configure email suffixes (like "@tempmail.com", "@throwaway.email") to catch disposable email addresses and spam domains.
+                Configure email suffixes (like "@tempmail.com",
+                "@throwaway.email") to catch disposable email addresses and spam
+                domains.
               </p>
             </div>
 
             {/* Feature 3 */}
-            <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+            {/* <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
               <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
                 <svg className="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -239,41 +333,62 @@ export default function Home() {
               <p className="text-gray-600 leading-relaxed">
                 Set up automatic cleanup runs daily or weekly. Your spam profiles are removed automatically without manual intervention.
               </p>
-            </div>
+            </div> */}
           </div>
 
           {/* How It Works */}
           <div className="bg-white rounded-2xl shadow-xl p-12 mb-16">
-            <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">How It Works</h2>
+            <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
+              How It Works
+            </h2>
             <div className="grid md:grid-cols-4 gap-8">
               <div className="text-center">
-                <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">1</div>
+                <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+                  1
+                </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Connect</h4>
-                <p className="text-sm text-gray-600">Connect your Klaviyo account securely via OAuth</p>
+                <p className="text-sm text-gray-600">
+                  Connect your Klaviyo account securely via OAuth
+                </p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">2</div>
+                <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+                  2
+                </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Configure</h4>
-                <p className="text-sm text-gray-600">Set up email patterns, prefixes, and suffixes to match</p>
+                <p className="text-sm text-gray-600">
+                  Set up email patterns, prefixes, and suffixes to match
+                </p>
               </div>
               <div className="text-center">
-                <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">3</div>
+                <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+                  3
+                </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
-                <p className="text-sm text-gray-600">Review matching profiles before deletion</p>
+                <p className="text-sm text-gray-600">
+                  Review matching profiles before deletion
+                </p>
               </div>
-              <div className="text-center">
-                <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">4</div>
+              {/* <div className="text-center">
+                <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
+                  4
+                </div>
                 <h4 className="font-semibold text-gray-900 mb-2">Automate</h4>
-                <p className="text-sm text-gray-600">Schedule automatic cleanup or run manually</p>
-              </div>
+                <p className="text-sm text-gray-600">
+                  Schedule automatic cleanup or run manually
+                </p>
+              </div> */}
             </div>
           </div>
 
           {/* CTA Section */}
           <div className="bg-gradient-to-r from-indigo-600 to-purple-600 rounded-2xl shadow-2xl p-12 text-center text-white">
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Clean Up Your Klaviyo Account?</h2>
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
+              Ready to Clean Up Your Klaviyo Account?
+            </h2>
             <p className="text-xl mb-8 text-indigo-100">
-              Start removing spam profiles automatically in minutes. No coding required.
+              Start removing spam profiles automatically in minutes. No coding
+              required.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               {isLoggedIn ? (
@@ -282,9 +397,19 @@ export default function Home() {
                   disabled={connectingKlaviyo}
                   className="inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-600 text-lg font-semibold rounded-lg shadow-lg hover:bg-gray-100 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600 disabled:opacity-70"
                 >
-                  {connectingKlaviyo ? 'Redirecting...' : 'Connect Klaviyo'}
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  {connectingKlaviyo ? "Redirecting..." : "Connect Klaviyo"}
+                  <svg
+                    className="w-5 h-5 ml-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7l5 5m0 0l-5 5m5-5H6"
+                    />
                   </svg>
                 </button>
               ) : (
@@ -293,8 +418,18 @@ export default function Home() {
                   className="inline-flex items-center justify-center px-8 py-4 bg-white text-indigo-600 text-lg font-semibold rounded-lg shadow-lg hover:bg-gray-100 transition-all transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-indigo-600"
                 >
                   Get Started Free — Sign in with Google
-                  <svg className="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  <svg
+                    className="w-5 h-5 ml-2"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 7l5 5m0 0l-5 5m5-5H6"
+                    />
                   </svg>
                 </button>
               )}
@@ -313,9 +448,14 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center text-gray-600">
               <p className="mb-2">Klaviyo Spam Profile Cleaner</p>
-              <p className="text-sm mb-2">Securely manage and clean your Klaviyo profiles</p>
+              <p className="text-sm mb-2">
+                Securely manage and clean your Klaviyo profiles
+              </p>
               <p className="text-sm">
-                <a href="/privacy" className="text-indigo-600 hover:text-indigo-700 underline">
+                <a
+                  href="/privacy"
+                  className="text-indigo-600 hover:text-indigo-700 underline"
+                >
                   Privacy Policy
                 </a>
               </p>
@@ -326,4 +466,3 @@ export default function Home() {
     </>
   );
 }
-

@@ -192,11 +192,16 @@ export default function Dashboard({ accountId }: { accountId: string }) {
   // Auto-trigger preview scan on initial load if rules already exist
   const autoScanTriggered = useRef(false);
   useEffect(() => {
-    if (!rulesLoading && rules && rules.length > 0 && !autoScanTriggered.current) {
+    if (
+      !rulesLoading &&
+      rules &&
+      rules.length > 0 &&
+      !autoScanTriggered.current
+    ) {
       autoScanTriggered.current = true;
       previewScan.mutate();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rulesLoading, rules]);
 
   // Determine max rules based on subscription tier: FREE=1, BASIC=5, PRO=100
@@ -339,7 +344,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
             // 500 errors or timeouts during deletion likely mean the process is still running
             showAlert(
               "Deletion May Be In Progress",
-              `The deletion request timed out, but profiles may still be processing in the background.\n\nDue to Klaviyo's rate limits, bulk deletions can take several minutes.\n\nPlease check your Klaviyo dashboard in a few minutes to confirm the deletions.\n\nTip: You can also set up automatic scheduled cleanups to avoid manual deletion waits.`,
+              `The deletion request timed out, but profiles may still be processing in the background.\n\nDue to Klaviyo's rate limits, bulk deletions can take several minutes.\n\nPlease check your Klaviyo dashboard in a few minutes to confirm the deletions.`,
               "warning",
             );
             // Clear the UI anyway since we don't know the actual status
@@ -429,7 +434,9 @@ export default function Dashboard({ accountId }: { accountId: string }) {
       onError: (error: any) => {
         showAlert(
           "Disconnect Failed",
-          error.response?.data?.error || error.message || "Failed to disconnect. Please try again.",
+          error.response?.data?.error ||
+            error.message ||
+            "Failed to disconnect. Please try again.",
           "error",
         );
       },
@@ -772,7 +779,9 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                 <span className="font-semibold text-gray-900 mr-2">
                   NAME_CONTAINS:
                 </span>
-                <span>First or last name contains (e.g., "Test" or "User")</span>
+                <span>
+                  First or last name contains (e.g., "Test" or "User")
+                </span>
               </div>
             </div>
           </div>
@@ -1378,7 +1387,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
         </section>
 
         {/* Scheduled Cleanup Section */}
-        <section className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8">
+        {/* <section className="bg-white rounded-xl shadow-lg p-6 sm:p-8 mb-6 sm:mb-8">
           <div className="flex items-center mb-6">
             <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center mr-3">
               <svg
@@ -1428,9 +1437,9 @@ export default function Dashboard({ accountId }: { accountId: string }) {
               </svg>
             </div>
           ) : (
-            <div className="space-y-6">
-              {/* Enable/Disable Toggle */}
-              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div className="space-y-6"> */}
+        {/* Enable/Disable Toggle */}
+        {/* <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                 <input
                   type="checkbox"
                   id="enableSchedule"
@@ -1499,10 +1508,10 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                     View Pro Plan →
                   </button>
                 </div>
-              )}
+              )} */}
 
-              {/* Frequency Selection */}
-              {schedule?.isEnabled && (
+        {/* Frequency Selection */}
+        {/* {schedule?.isEnabled && (
                 <div className="space-y-6 pl-2 sm:pl-4">
                   <div className="bg-indigo-50 rounded-lg p-4 sm:p-6 border border-indigo-100">
                     <label className="block text-sm font-semibold text-gray-900 mb-4">
@@ -1618,10 +1627,10 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                           )}
                       </label>
                     </div>
-                  </div>
+                  </div> */}
 
-                  {/* Schedule Info */}
-                  <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 sm:p-6 border border-gray-200">
+        {/* Schedule Info */}
+        {/* <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg p-4 sm:p-6 border border-gray-200">
                     <h3 className="text-sm font-semibold text-gray-900 mb-4">
                       Schedule Status
                     </h3>
@@ -1669,10 +1678,10 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                         </span>
                       </div>
                     </div>
-                  </div>
+                  </div> */}
 
-                  {/* Manual Run Button */}
-                  <div>
+        {/* Manual Run Button */}
+        {/* <div>
                     <button
                       onClick={() => {
                         showConfirm(
@@ -1730,9 +1739,9 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                     </button>
                   </div>
                 </div>
-              )}
+              )} */}
 
-              {!schedule?.isEnabled && (
+        {/* {!schedule?.isEnabled && (
                 <div className="bg-gray-50 rounded-lg p-6 border-2 border-dashed border-gray-300 text-center">
                   <svg
                     className="mx-auto h-12 w-12 text-gray-400 mb-3"
@@ -1752,10 +1761,10 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                     automatically based on your rules.
                   </p>
                 </div>
-              )}
-            </div>
+              )} */}
+        {/* </div>
           )}
-        </section>
+        </section> */}
       </div>
 
       {/* Disconnect / Disable Integration Section */}
@@ -1787,7 +1796,9 @@ export default function Dashboard({ accountId }: { accountId: string }) {
             </div>
           </div>
           <p className="text-sm text-gray-600 mb-4">
-            Disconnecting will revoke this app's OAuth access to your Klaviyo account and remove all your stored rules, schedule, and history. Your Klaviyo profiles will not be affected.
+            Disconnecting will revoke this app's OAuth access to your Klaviyo
+            account and remove all your stored rules, schedule, and history.
+            Your Klaviyo profiles will not be affected.
           </p>
           <button
             onClick={() => {

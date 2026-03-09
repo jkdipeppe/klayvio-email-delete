@@ -1,11 +1,11 @@
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/router';
-import Head from 'next/head';
-import axios from 'axios';
-import Dashboard from '@/components/Dashboard';
-import { getToken } from '@/utils/auth';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/router";
+import Head from "next/head";
+import axios from "axios";
+import Dashboard from "@/components/Dashboard";
+import { getToken } from "@/utils/auth";
 
-const ACCOUNT_ID_KEY = 'klaviyo_cleaner_account_id';
+const ACCOUNT_ID_KEY = "klaviyo_cleaner_account_id";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -16,18 +16,18 @@ export default function DashboardPage() {
     if (!router.isReady) return;
 
     if (!getToken()) {
-      router.replace('/');
+      router.replace("/");
       return;
     }
 
     const resolveAccountId = async () => {
-      if (urlAccountId && typeof urlAccountId === 'string') {
+      if (urlAccountId && typeof urlAccountId === "string") {
         setAccountId(urlAccountId);
         localStorage.setItem(ACCOUNT_ID_KEY, urlAccountId);
         return;
       }
       try {
-        const res = await axios.get('/api/me');
+        const res = await axios.get("/api/me");
         const meAccountId = res.data?.accountId;
         if (meAccountId) {
           setAccountId(meAccountId);
@@ -42,7 +42,7 @@ export default function DashboardPage() {
       if (savedAccountId) {
         setAccountId(savedAccountId);
       } else {
-        router.replace('/');
+        router.replace("/");
       }
     };
 
@@ -62,7 +62,10 @@ export default function DashboardPage() {
     <>
       <Head>
         <title>Dashboard - Klaviyo Spam Profile Cleaner</title>
-        <meta name="description" content="Manage your spam profile cleanup rules and scheduled cleanups" />
+        <meta
+          name="description"
+          content="Manage your spam profile cleanup rules"
+        />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/png" href="/SpamProfileCleanerIcon.png" />
         <link rel="apple-touch-icon" href="/SpamProfileCleanerIcon.png" />
@@ -72,4 +75,3 @@ export default function DashboardPage() {
     </>
   );
 }
-
