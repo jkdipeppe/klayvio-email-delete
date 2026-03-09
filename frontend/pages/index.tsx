@@ -268,7 +268,7 @@ export default function Home() {
           </div>
 
           {/* Features Grid */}
-          <div className="grid md:grid-cols-3 gap-8 mb-16">
+          <div className="grid md:grid-cols-2 gap-8 mb-16">
             {/* Feature 1 */}
             <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
               <div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center mb-4">
@@ -341,7 +341,7 @@ export default function Home() {
             <h2 className="text-3xl font-bold text-gray-900 text-center mb-12">
               How It Works
             </h2>
-            <div className="grid md:grid-cols-4 gap-8">
+            <div className="grid md:grid-cols-3 gap-8">
               <div className="text-center">
                 <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                   1
