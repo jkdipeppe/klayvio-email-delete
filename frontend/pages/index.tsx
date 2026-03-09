@@ -364,7 +364,9 @@ export default function Home() {
                 <div className="w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4">
                   3
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-2">Preview</h4>
+                <h4 className="font-semibold text-gray-900 mb-2">
+                  Preview & Delete
+                </h4>
                 <p className="text-sm text-gray-600">
                   Review matching profiles before deletion
                 </p>
