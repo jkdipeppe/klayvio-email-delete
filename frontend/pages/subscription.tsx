@@ -341,14 +341,14 @@ export default function SubscriptionPage() {
                         (subscription?.tier === "PRO" ? 100 : 5)}
                     </p>
                   </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
+                  {/* <div className="bg-gray-50 rounded-lg p-4">
                     <p className="text-sm text-gray-600 mb-1">
                       Automatic Scheduling
                     </p>
                     <p className="text-lg font-semibold text-gray-900">
                       {subscription?.canSchedule ? "✅ Enabled" : "❌ Disabled"}
                     </p>
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Actions */}
@@ -507,7 +507,7 @@ export default function SubscriptionPage() {
                       </svg>
                       Unlimited manual cleanup runs
                     </li>
-                    <li className="flex items-start">
+                    {/* <li className="flex items-start">
                       <svg
                         className="w-5 h-5 text-gray-400 mr-2 mt-0.5"
                         fill="currentColor"
@@ -520,7 +520,7 @@ export default function SubscriptionPage() {
                         />
                       </svg>
                       No automatic scheduling
-                    </li>
+                    </li> */}
                   </ul>
                 </div>
 
@@ -567,7 +567,7 @@ export default function SubscriptionPage() {
                       </svg>
                       Unlimited manual cleanup runs
                     </li>
-                    <li className="flex items-start">
+                    {/* <li className="flex items-start">
                       <svg
                         className="w-5 h-5 text-green-500 mr-2 mt-0.5"
                         fill="currentColor"
@@ -580,7 +580,7 @@ export default function SubscriptionPage() {
                         />
                       </svg>
                       Automatic scheduling (daily/weekly)
-                    </li>
+                    </li> */}
                   </ul>
                 </div>
               </div>
@@ -632,8 +632,8 @@ export default function SubscriptionPage() {
                 </h3>
                 <p className="text-gray-600 mb-6">
                   {showChangeTierConfirm === "PRO"
-                    ? "You'll be charged the prorated difference immediately. Your subscription will be upgraded to Pro Plan with access to 100 rules and automatic scheduling."
-                    : "You'll be credited for the remaining time. Your subscription will be downgraded to Basic Plan with a limit of 5 rules and no automatic scheduling. Make sure you have 5 or fewer rules before downgrading."}
+                    ? "You'll be charged the prorated difference immediately. Your subscription will be upgraded to Pro Plan with access to 100 rules."
+                    : "You'll be credited for the remaining time. Your subscription will be downgraded to Basic Plan with a limit of 5 rules. Make sure you have 5 or fewer rules before downgrading."}
                 </p>
                 <div className="flex gap-4">
                   <button
