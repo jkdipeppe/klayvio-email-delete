@@ -626,7 +626,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border-l-4 border-indigo-500">
             <div className="flex items-center justify-between">
               <div>
@@ -689,7 +689,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
             </div>
           </div>
 
-          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border-l-4 border-purple-500">
+          {/* <div className="bg-white rounded-xl shadow-lg p-4 sm:p-6 border-l-4 border-purple-500">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">
@@ -715,7 +715,7 @@ export default function Dashboard({ accountId }: { accountId: string }) {
                 </svg>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         {/* Add Rule Section */}
