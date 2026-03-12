@@ -1,0 +1,65 @@
+# Klaviyo Spam Profile Cleaner
+> A web tool that automatically identifies and removes spam profiles from Klaviyo email marketing accounts using customizable email pattern rules.
+
+## What is Klaviyo Spam Profile Cleaner?
+
+Klaviyo Spam Profile Cleaner is a SaaS tool that helps Klaviyo users maintain email list hygiene by bulk-deleting spam, bot, and disposable-email profiles. Users connect their Klaviyo account via OAuth, configure matching rules (email prefixes and suffixes), preview matching profiles, then delete them on demand.
+
+## Key Features
+
+- **Email Prefix Matching**: Delete profiles whose email addresses start with specific strings (e.g., "noreply", "test", "info", "spam", "bounce")
+- **Email Suffix/Domain Matching**: Delete profiles using disposable or spam email domains (e.g., "@tempmail.com", "@throwaway.email", "@mailinator.com")
+- **Preview Before Delete**: Review all matched profiles before committing to deletion
+- **Secure Klaviyo OAuth**: Connects via official Klaviyo OAuth — no API keys stored in plaintext
+- **Deletion History**: Full audit log of every cleanup run
+- **Manual On-Demand Runs**: Users trigger cleanup runs manually whenever they choose
+
+## Pricing
+
+| Plan  | Price     | Deletion Rules | Profiles per Run       |
+|-------|-----------|----------------|------------------------|
+| Free  | $0/month  | 1 rule         | 3 profiles per deletion|
+| Basic | $5/month  | Up to 5 rules  | Unlimited              |
+| Pro   | $7/month  | Up to 100 rules| Unlimited              |
+
+All plans include unlimited manual cleanup runs.
+
+## How It Works
+
+1. **Connect**: Sign in with Google, then connect your Klaviyo account via OAuth
+2. **Configure**: Set up email prefix and suffix patterns to match spam profiles
+3. **Preview**: Review the list of matched profiles before any deletion occurs
+4. **Delete**: Confirm deletion — matched profiles are removed from your Klaviyo account
+
+## Who Is This For?
+
+- Klaviyo users who want to remove bot signups and spam profiles
+- Email marketers wanting to improve deliverability and reduce costs by keeping lists clean
+- E-commerce stores using Klaviyo who accumulate spam from checkout forms
+- Agencies managing multiple Klaviyo accounts (Pro plan supports up to 100 deletion rules)
+
+## Common Use Cases
+
+- Remove all profiles with email addresses starting with "test", "noreply", "info", "admin", "bounce"
+- Delete profiles using known disposable email domains (tempmail, mailinator, guerrillamail, etc.)
+- Bulk-clean a Klaviyo list after a giveaway or form that attracted bot signups
+- Maintain ongoing list hygiene by running cleanups manually before each campaign send
+
+## Technical Details
+
+- Frontend: Next.js (React), deployed on Vercel
+- Authentication: Google OAuth (for app login) + Klaviyo OAuth (for Klaviyo API access)
+- Payments: Stripe (for subscriptions)
+- API: Communicates with Klaviyo's REST API v2024 to fetch and delete profiles
+
+## Contact
+
+- Email: antibotbuilders@gmail.com
+- Website: https://klaviyocleaner.com
+
+## Pages
+
+- Homepage: https://klaviyocleaner.com/
+- Pricing: https://klaviyocleaner.com/pricing
+- FAQ: https://klaviyocleaner.com/faq
+- Privacy Policy: https://klaviyocleaner.com/privacy

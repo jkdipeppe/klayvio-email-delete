@@ -175,13 +175,61 @@ export default function PricingPage() {
   return (
     <>
       <Head>
-        <title>Pricing - Klaviyo Spam Profile Cleaner</title>
+        <title>Pricing - Klaviyo Spam Profile Cleaner | Free, $5/mo, $7/mo Plans</title>
         <meta
           name="description"
-          content="Choose the perfect plan for your spam profile cleanup needs"
+          content="Simple, transparent pricing for Klaviyo spam profile cleanup. Start free with 1 rule, or upgrade to Basic ($5/mo) or Pro ($7/mo) for unlimited profiles and up to 100 deletion rules."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/png" href="/SpamProfileCleanerIcon.png" />
+        <link rel="canonical" href="https://klaviyocleaner.com/pricing" />
+
+        {/* Open Graph */}
+        <meta property="og:title" content="Pricing - Klaviyo Spam Profile Cleaner" />
+        <meta property="og:description" content="Free plan available. Upgrade to Basic ($5/mo) or Pro ($7/mo) for unlimited profiles and up to 100 deletion rules. No coding required." />
+        <meta property="og:url" content="https://klaviyocleaner.com/pricing" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:title" content="Klaviyo Cleaner Pricing — Free, $5, $7/mo" />
+        <meta name="twitter:description" content="Free plan available. Upgrade for unlimited spam profile deletions in Klaviyo." />
+
+        {/* JSON-LD: PriceSpecification */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebPage",
+              "name": "Pricing - Klaviyo Spam Profile Cleaner",
+              "url": "https://klaviyocleaner.com/pricing",
+              "description": "Simple, transparent pricing for Klaviyo spam profile cleanup.",
+              "mainEntity": {
+                "@type": "ItemList",
+                "name": "Klaviyo Spam Profile Cleaner Pricing Plans",
+                "itemListElement": [
+                  {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Free Plan",
+                    "description": "1 deletion rule, 3 profiles per deletion, unlimited manual cleanup runs. $0/month."
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 2,
+                    "name": "Basic Plan",
+                    "description": "Up to 5 deletion rules, unlimited profiles per deletion, unlimited manual runs. $5/month."
+                  },
+                  {
+                    "@type": "ListItem",
+                    "position": 3,
+                    "name": "Pro Plan",
+                    "description": "Up to 100 deletion rules, unlimited profiles per deletion, unlimited manual runs. $7/month."
+                  }
+                ]
+              }
+            })
+          }}
+        />
       </Head>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         {/* Navigation Bar */}
@@ -546,15 +594,22 @@ export default function PricingPage() {
         <footer className="bg-white border-t border-gray-200 mt-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center text-gray-600">
-              <p className="mb-2">Klaviyo Spam Profile Cleaner</p>
-              <p className="text-sm">
+              <p className="mb-3">Klaviyo Spam Profile Cleaner</p>
+              <div className="flex justify-center gap-4 text-sm">
+                <a
+                  href="/faq"
+                  className="text-indigo-600 hover:text-indigo-700 underline"
+                >
+                  FAQ
+                </a>
+                <span className="text-gray-400">·</span>
                 <a
                   href="/privacy"
                   className="text-indigo-600 hover:text-indigo-700 underline"
                 >
                   Privacy Policy
                 </a>
-              </p>
+              </div>
             </div>
           </div>
         </footer>

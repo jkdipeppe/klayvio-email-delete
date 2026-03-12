@@ -103,15 +103,26 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>Klaviyo Spam Profile Cleaner - Automate Profile Removal</title>
+        <title>Klaviyo Spam Profile Cleaner - Remove Spam Profiles Automatically</title>
         <meta
           name="description"
-          content="Automatically identify and remove spam profiles from your Klaviyo account using customizable email patterns, prefixes, and suffixes."
+          content="Automatically identify and remove spam profiles from your Klaviyo account using customizable email patterns, prefixes, and suffixes. Keep your email list clean and boost deliverability."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/png" href="/SpamProfileCleanerIcon.png" />
         <link rel="apple-touch-icon" href="/SpamProfileCleanerIcon.png" />
         <meta name="theme-color" content="#4F46E5" />
+        <link rel="canonical" href="https://klaviyocleaner.com/" />
+
+        {/* Open Graph */}
+        <meta property="og:title" content="Klaviyo Spam Profile Cleaner - Remove Spam Profiles Automatically" />
+        <meta property="og:description" content="Automatically identify and remove spam profiles from your Klaviyo account using customizable email patterns, prefixes, and suffixes. Free plan available." />
+        <meta property="og:url" content="https://klaviyocleaner.com/" />
+        <meta property="og:type" content="website" />
+
+        {/* Twitter Card */}
+        <meta name="twitter:title" content="Klaviyo Spam Profile Cleaner" />
+        <meta name="twitter:description" content="Remove spam profiles from your Klaviyo account automatically using customizable email patterns. Free plan available." />
       </Head>
       <main className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
         {/* Header */}
@@ -138,6 +149,10 @@ export default function Home() {
                   Klaviyo Cleaner
                 </span>
               </div>
+              <nav className="hidden sm:flex items-center gap-6 text-sm font-medium text-gray-600">
+                <a href="/pricing" className="hover:text-indigo-600 transition-colors">Pricing</a>
+                <a href="/faq" className="hover:text-indigo-600 transition-colors">FAQ</a>
+              </nav>
             </div>
           </div>
         </header>
@@ -450,17 +465,31 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <div className="text-center text-gray-600">
               <p className="mb-2">Klaviyo Spam Profile Cleaner</p>
-              <p className="text-sm mb-2">
+              <p className="text-sm mb-3">
                 Securely manage and clean your Klaviyo profiles
               </p>
-              <p className="text-sm">
+              <div className="flex justify-center gap-4 text-sm">
+                <a
+                  href="/pricing"
+                  className="text-indigo-600 hover:text-indigo-700 underline"
+                >
+                  Pricing
+                </a>
+                <span className="text-gray-400">·</span>
+                <a
+                  href="/faq"
+                  className="text-indigo-600 hover:text-indigo-700 underline"
+                >
+                  FAQ
+                </a>
+                <span className="text-gray-400">·</span>
                 <a
                   href="/privacy"
                   className="text-indigo-600 hover:text-indigo-700 underline"
                 >
                   Privacy Policy
                 </a>
-              </p>
+              </div>
             </div>
           </div>
         </footer>

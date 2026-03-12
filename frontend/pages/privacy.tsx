@@ -8,10 +8,12 @@ export default function PrivacyPolicy() {
         <title>Privacy Policy - Klaviyo Spam Profile Cleaner</title>
         <meta
           name="description"
-          content="Privacy Policy for Klaviyo Spam Profile Cleaner"
+          content="Read the Privacy Policy for Klaviyo Spam Profile Cleaner. Learn how we collect, use, and protect your data when you use our Klaviyo profile cleanup service."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" type="image/png" href="/SpamProfileCleanerIcon.png" />
+        <link rel="canonical" href="https://klaviyocleaner.com/privacy" />
+        <meta name="robots" content="noindex, follow" />
       </Head>
       <div className="min-h-screen bg-gray-50">
         {/* Header */}

@@ -1,0 +1,20 @@
+{
+  "name": "Klaviyo Spam Profile Cleaner",
+  "short_name": "Klaviyo Cleaner",
+  "description": "Automatically identify and remove spam profiles from your Klaviyo account using customizable email patterns.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#EEF2FF",
+  "theme_color": "#4F46E5",
+  "icons": [
+    {
+      "src": "/SpamProfileCleanerIcon.png",
+      "sizes": "any",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "en-US",
+  "orientation": "portrait-primary"
+}
